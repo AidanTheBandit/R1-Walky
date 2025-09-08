@@ -4,107 +4,524 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R1-Walky</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            width: 240px;
+            height: 282px;
+            overflow: hidden;
+        }
+        
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+        }
+        
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .user-info {
+            font-size: 12px;
+        }
+        
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #333;
+            background: #111;
+            color: #fff;
+            border-radius: 4px;
+        }
+        
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .friends-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        
+        .friend-item {
+            padding: 8px;
+            margin: 2px 0;
+            background: #222;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .friend-item:hover {
+            background: #333;
+        }
+        
+        .ptt-button {
+            height: 60px;
+            background: #28a745;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .ptt-button:hover {
+            background: #218838;
+        }
+        
+        .ptt-button.active {
+            background: #dc3545;
+        }
+        
+        .status {
+            font-size: 11px;
+            text-align: center;
+            margin: 5px 0;
+            color: #888;
+        }
+        
+        .status.online {
+            color: #28a745;
+        }
+        
+        .status.error {
+            color: #dc3545;
+        }
+        
+        .debug {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 5px;
+            font-size: 8px;
+            max-width: 100px;
+        }
+        
+        .friend-requests {
+            background: #444;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            padding: 8px;
+        }
+        
+        .friend-request {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 11px;
+        }
+        
+        .request-buttons {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .request-buttons button {
+            padding: 2px 6px;
+            margin: 0;
+            font-size: 10px;
+            min-width: 30px;
+        }
+        
+        .btn-accept {
+            background: #28a745;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+        }
+    </style>
 </head>
 <body>
-    <div id="app" class="app">
-        <!-- Device Verification Screen -->
-        <div id="verify-screen" class="screen active">
-            <div class="header">
-                <h1>R1-Walky</h1>
-            </div>
-            <div class="content">
-                <p>Verifying R1 device...</p>
-                <div id="verify-status" class="status">Checking device ID</div>
-            </div>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="header">
+            <h1>R1-Walky</h1>
         </div>
-
-        <!-- Login/Register Screen -->
-        <div id="auth-screen" class="screen">
-            <div class="header">
-                <h1>Welcome</h1>
-            </div>
-            <div class="content">
-                <input type="text" id="username" placeholder="Enter username" maxlength="20">
-                <button id="register-btn" class="btn primary">Register</button>
-                <div id="auth-status" class="status"></div>
-            </div>
-        </div>
-
-        <!-- Main Walkie Talkie Screen -->
-        <div id="main-screen" class="screen">
-            <div class="header">
-                <div class="user-info">
-                    <span id="current-user">User</span>
-                    <span id="connection-status" class="status offline">Offline</span>
-                </div>
-            </div>
-
-            <div class="content">
-                <!-- Friends List -->
-                <div class="friends-section">
-                    <div class="section-header">
-                        <h2>Friends</h2>
-                        <div class="header-buttons">
-                            <button id="friend-requests-btn" class="btn small">📨</button>
-                            <button id="add-friend-btn" class="btn small">+</button>
-                        </div>
-                    </div>
-                    <div id="friends-list" class="friends-list">
-                        <!-- Friends will be added here -->
-                    </div>
-                </div>
-
-                <!-- PTT Control -->
-                <div class="ptt-section">
-                    <div id="ptt-indicator" class="ptt-indicator idle">
-                        <div class="ptt-label">PTT</div>
-                        <div class="ptt-status">Ready</div>
-                    </div>
-                </div>
-
-                <!-- Call Status -->
-                <div id="call-status" class="call-status">
-                    <!-- Call status messages -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Add Friend Modal -->
-        <div id="add-friend-modal" class="modal">
-            <div class="modal-content">
-                <h3>Add Friend</h3>
-                <input type="text" id="friend-username" placeholder="Friend's username" maxlength="20">
-                <div class="modal-buttons">
-                    <button id="cancel-add-friend" class="btn secondary">Cancel</button>
-                    <button id="confirm-add-friend" class="btn primary">Send Request</button>
-                </div>
-                <div id="add-friend-status" class="status"></div>
-            </div>
-        </div>
-
-        <!-- Friend Requests Modal -->
-        <div id="friend-requests-modal" class="modal">
-            <div class="modal-content">
-                <h3>Friend Requests</h3>
-                <div id="friend-requests-list" class="friend-requests-list">
-                    <!-- Friend requests will be added here -->
-                </div>
-                <div class="modal-buttons">
-                    <button id="close-friend-requests" class="btn secondary">Close</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Debug Panel (for development) -->
-        <div id="debug-panel" class="debug-panel" style="display: none;">
-            <h3>Device Debug Info</h3>
-            <div id="debug-info"></div>
-            <button id="refresh-debug" class="btn small">Refresh</button>
+        <div class="content">
+            <input type="text" id="username" placeholder="Enter username" maxlength="20">
+            <button id="login-btn" class="btn-primary">Join</button>
+            <div id="login-status" class="status"></div>
         </div>
     </div>
 
+    <!-- Main Screen -->
+    <div id="main-screen" class="screen">
+        <div class="header">
+            <h1>R1-Walky</h1>
+            <div class="user-info">
+                <span id="current-user">User</span> | 
+                <span id="connection-status" class="status">Offline</span>
+            </div>
+        </div>
+        <div class="content">
+            <div class="friend-requests" id="friend-requests" style="display: none;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Friend Requests</div>
+                <div id="friend-requests-list"></div>
+            </div>
+            <div class="friends-list" id="friends-list">
+                <div class="friend-item">No friends yet</div>
+            </div>
+            <input type="text" id="friend-username" placeholder="Add friend by username">
+            <button id="add-friend-btn">Add Friend</button>
+            <button id="ptt-button" class="ptt-button">Hold to Talk</button>
+            <div id="call-status" class="status"></div>
+        </div>
+    </div>
+
+    <div class="debug" id="debug">
+        Debug info
+    </div>
+
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <script src="walkie-talkie.js"></script>
+    <script>
+        class SimpleWalky {
+            constructor() {
+                this.currentUser = null;
+                this.friends = [];
+                this.friendRequests = [];
+                this.socket = null;
+                this.init();
+            }
+
+            init() {
+                console.log('Starting SimpleWalky...');
+                
+                // Check for existing session
+                const saved = localStorage.getItem('walky_user');
+                if (saved) {
+                    this.currentUser = JSON.parse(saved);
+                    this.showMainScreen();
+                } else {
+                    this.setupLoginListeners();
+                }
+                
+                this.updateDebug();
+            }
+
+            setupLoginListeners() {
+                document.getElementById('login-btn').onclick = () => this.login();
+                document.getElementById('username').onkeypress = (e) => {
+                    if (e.key === 'Enter') this.login();
+                };
+            }
+
+            setupMainListeners() {
+                document.getElementById('add-friend-btn').onclick = () => this.addFriend();
+                document.getElementById('friend-username').onkeypress = (e) => {
+                    if (e.key === 'Enter') this.addFriend();
+                };
+                
+                const pttBtn = document.getElementById('ptt-button');
+                pttBtn.onmousedown = () => this.startTalk();
+                pttBtn.onmouseup = () => this.stopTalk();
+                pttBtn.ontouchstart = () => this.startTalk();
+                pttBtn.ontouchend = () => this.stopTalk();
+                
+                // R1 hardware button support
+                window.addEventListener('longPressStart', () => this.startTalk());
+                window.addEventListener('longPressEnd', () => this.stopTalk());
+            }
+
+            async login() {
+                const username = document.getElementById('username').value.trim();
+                const status = document.getElementById('login-status');
+                
+                if (!username) {
+                    status.textContent = 'Enter username';
+                    status.className = 'status error';
+                    return;
+                }
+                
+                status.textContent = 'Joining...';
+                status.className = 'status';
+                
+                try {
+                    const deviceId = 'R1-' + Date.now();
+                    const response = await fetch('/api/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, deviceId })
+                    });
+                    
+                    if (response.ok) {
+                        const user = await response.json();
+                        this.currentUser = user;
+                        localStorage.setItem('walky_user', JSON.stringify(user));
+                        this.showMainScreen();
+                    } else {
+                        const error = await response.json();
+                        status.textContent = error.error || 'Login failed';
+                        status.className = 'status error';
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    status.textContent = 'Network error';
+                    status.className = 'status error';
+                }
+            }
+
+            showMainScreen() {
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('main-screen').classList.add('active');
+                document.getElementById('current-user').textContent = this.currentUser.username;
+                document.getElementById('connection-status').textContent = 'Online';
+                document.getElementById('connection-status').className = 'status online';
+                
+                this.setupMainListeners();
+                this.loadFriends();
+                this.loadFriendRequests();
+                this.connectSocket();
+            }
+
+            async loadFriends() {
+                try {
+                    const response = await fetch('/api/friends', {
+                        headers: { 'X-User-ID': this.currentUser.id }
+                    });
+                    
+                    if (response.ok) {
+                        this.friends = await response.json();
+                        this.renderFriends();
+                    }
+                } catch (error) {
+                    console.error('Load friends error:', error);
+                }
+            }
+
+            renderFriends() {
+                const list = document.getElementById('friends-list');
+                if (this.friends.length === 0) {
+                    list.innerHTML = '<div class="friend-item">No friends yet</div>';
+                    return;
+                }
+                
+                list.innerHTML = this.friends.map(friend => 
+                    `<div class="friend-item" onclick="app.callFriend('${friend.username}')">
+                        ${friend.username} (${friend.status || 'offline'})
+                    </div>`
+                ).join('');
+            }
+
+            async addFriend() {
+                const username = document.getElementById('friend-username').value.trim();
+                if (!username) return;
+                
+                try {
+                    const response = await fetch('/api/friends', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': this.currentUser.id
+                        },
+                        body: JSON.stringify({ friendUsername: username })
+                    });
+                    
+                    if (response.ok) {
+                        document.getElementById('friend-username').value = '';
+                        this.updateStatus('Friend request sent!');
+                        setTimeout(() => this.loadFriends(), 1000);
+                    } else {
+                        const error = await response.json();
+                        this.updateStatus(error.error || 'Failed to add friend');
+                    }
+                } catch (error) {
+                    console.error('Add friend error:', error);
+                    this.updateStatus('Network error');
+                }
+            }
+
+            callFriend(username) {
+                this.updateStatus(`Calling ${username}...`);
+                console.log('Calling friend:', username);
+            }
+
+            startTalk() {
+                const btn = document.getElementById('ptt-button');
+                btn.textContent = 'Talking...';
+                btn.classList.add('active');
+                this.updateStatus('Transmitting...');
+                console.log('PTT Start');
+            }
+
+            stopTalk() {
+                const btn = document.getElementById('ptt-button');
+                btn.textContent = 'Hold to Talk';
+                btn.classList.remove('active');
+                this.updateStatus('Ready');
+                console.log('PTT Stop');
+            }
+
+            connectSocket() {
+                this.socket = io();
+                this.socket.on('connect', () => {
+                    console.log('Socket connected');
+                    this.socket.emit('register', this.currentUser.id);
+                });
+                
+                // Listen for real-time friend request events
+                this.socket.on('friend-request-received', (data) => {
+                    console.log('Friend request received:', data);
+                    this.loadFriendRequests(); // Refresh friend requests
+                    this.updateStatus(`Friend request from ${data.fromUser.username}`);
+                });
+                
+                this.socket.on('friend-request-accepted', (data) => {
+                    console.log('Friend request accepted:', data);
+                    this.loadFriends(); // Refresh friends list
+                    this.updateStatus(`${data.accepter.username} accepted your request!`);
+                });
+                
+                this.socket.on('friendship-updated', (data) => {
+                    console.log('Friendship updated:', data);
+                    this.loadFriends(); // Refresh friends list
+                });
+            }
+
+            updateStatus(message) {
+                document.getElementById('call-status').textContent = message;
+            }
+
+            async loadFriendRequests() {
+                try {
+                    const response = await fetch('/api/friends/requests', {
+                        headers: { 'X-User-ID': this.currentUser.id }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.friendRequests = data.requests || [];
+                        this.renderFriendRequests();
+                    }
+                } catch (error) {
+                    console.error('Load friend requests error:', error);
+                }
+            }
+            
+            renderFriendRequests() {
+                const container = document.getElementById('friend-requests');
+                const list = document.getElementById('friend-requests-list');
+                
+                if (this.friendRequests.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+                
+                container.style.display = 'block';
+                list.innerHTML = this.friendRequests.map(request => 
+                    `<div class="friend-request">
+                        <span>${request.username}</span>
+                        <div class="request-buttons">
+                            <button class="btn-accept" onclick="app.acceptFriendRequest('${request.friendshipId}')">✓</button>
+                            <button class="btn-reject" onclick="app.rejectFriendRequest('${request.friendshipId}')">✗</button>
+                        </div>
+                    </div>`
+                ).join('');
+            }
+            
+            async acceptFriendRequest(friendshipId) {
+                try {
+                    const response = await fetch(`/api/friends/${friendshipId}/accept`, {
+                        method: 'POST',
+                        headers: { 'X-User-ID': this.currentUser.id }
+                    });
+                    
+                    if (response.ok) {
+                        this.updateStatus('Friend request accepted!');
+                        this.loadFriendRequests();
+                        this.loadFriends();
+                    } else {
+                        this.updateStatus('Failed to accept request');
+                    }
+                } catch (error) {
+                    console.error('Accept friend request error:', error);
+                    this.updateStatus('Network error');
+                }
+            }
+            
+            async rejectFriendRequest(friendshipId) {
+                try {
+                    const response = await fetch(`/api/friends/${friendshipId}/reject`, {
+                        method: 'POST',
+                        headers: { 'X-User-ID': this.currentUser.id }
+                    });
+                    
+                    if (response.ok) {
+                        this.updateStatus('Friend request rejected');
+                        this.loadFriendRequests();
+                    } else {
+                        this.updateStatus('Failed to reject request');
+                    }
+                } catch (error) {
+                    console.error('Reject friend request error:', error);
+                    this.updateStatus('Network error');
+                }
+            }
+
+            updateDebug() {
+                const debug = document.getElementById('debug');
+                debug.innerHTML = `
+                    User: ${this.currentUser ? this.currentUser.username : 'None'}<br>
+                    Friends: ${this.friends.length}<br>
+                    Requests: ${this.friendRequests.length}<br>
+                    Platform: ${navigator.platform.substring(0, 10)}
+                `;
+            }
+        }
+
+        // Start the app
+        const app = new SimpleWalky();
+        
+        // Update debug info periodically
+        setInterval(() => app.updateDebug(), 5000);
+    </script>
 </body>
 </html>
