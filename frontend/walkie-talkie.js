@@ -21,9 +21,9 @@ class WalkieTalkie {
     async init() {
         console.log('🚀 Initializing WalkieTalkie app...');
 
-        // Check for existing user session
+        // Check for existing user session (synchronous)
         console.log('🔍 Checking for existing user session...');
-        const hasSession = await this.loadUserSession();
+        const hasSession = this.loadUserSession();
 
         if (hasSession && this.currentUser) {
             console.log('✅ Found existing session for user:', this.currentUser.username);
@@ -38,7 +38,7 @@ class WalkieTalkie {
         this.showDebugPanel();
     }
 
-    // Helper method to make authenticated API calls
+    // Helper method to make authenticated API calls - Enhanced
     async apiCall(endpoint, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
@@ -51,24 +51,57 @@ class WalkieTalkie {
             console.log('🔑 Adding auth header for user:', this.currentUser.username, 'ID:', this.currentUser.id);
         } else {
             console.log('⚠️ No current user for API call to:', endpoint);
+            // Try to load session if we don't have a user
+            const hasSession = await this.loadUserSession();
+            if (hasSession && this.currentUser) {
+                headers['X-User-ID'] = this.currentUser.id;
+                console.log('🔄 Recovered session for API call');
+            }
         }
 
-        const response = await fetch(endpoint, {
-            ...options,
-            headers
-        });
+        try {
+            const response = await fetch(endpoint, {
+                ...options,
+                headers
+            });
 
-        console.log('📡 API call to:', endpoint, 'Status:', response.status);
+            console.log('📡 API call to:', endpoint, 'Status:', response.status);
 
-        // Handle authentication errors
-        if (response.status === 401) {
-            console.log('🚫 Authentication error - clearing session and redirecting to auth');
-            await this.clearUserSession();
-            this.showAuthScreen();
-            throw new Error('Authentication required');
+            // Handle authentication errors
+            if (response.status === 401) {
+                console.log('🚫 Authentication error - attempting to recover session');
+
+                // Try to reload session
+                const hasSession = await this.loadUserSession();
+                if (hasSession && this.currentUser) {
+                    console.log('🔄 Session recovered, retrying API call');
+                    // Retry the call with recovered session
+                    headers['X-User-ID'] = this.currentUser.id;
+                    const retryResponse = await fetch(endpoint, {
+                        ...options,
+                        headers
+                    });
+                    if (retryResponse.ok) {
+                        console.log('✅ API call succeeded after session recovery');
+                        return retryResponse;
+                    }
+                }
+
+                // If recovery failed, clear session and redirect
+                console.log('❌ Session recovery failed, clearing session');
+                await this.clearUserSession();
+                this.showAuthScreen();
+                throw new Error('Authentication required');
+            }
+
+            return response;
+        } catch (error) {
+            if (error.message === 'Authentication required') {
+                throw error;
+            }
+            console.error('Network error:', error);
+            throw error;
         }
-
-        return response;
     }
 
     // Device Verification - Simplified for development
@@ -377,7 +410,18 @@ class WalkieTalkie {
 
             if (sessionCookie) {
                 const encodedData = sessionCookie.split('=')[1];
+                if (!encodedData) {
+                    console.log('❌ Empty session cookie data');
+                    return false;
+                }
+
                 const session = JSON.parse(atob(encodedData));
+
+                // Validate session data
+                if (!session.userId || !session.username) {
+                    console.log('❌ Invalid session data:', session);
+                    return false;
+                }
 
                 this.currentUser = {
                     id: session.userId,
@@ -393,6 +437,8 @@ class WalkieTalkie {
             return false;
         } catch (error) {
             console.error('❌ Failed to load session:', error);
+            // Clear corrupted cookie
+            this.clearUserSession();
             return false;
         }
     }
