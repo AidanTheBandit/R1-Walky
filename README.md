@@ -126,8 +126,10 @@ R1-Walky/
 - [ ] Build basic CRUD operations for users and friends
 - [ ] Set up WebSocket server for real-time features
 
-### Phase 3: Frontend Development
+### Phase 3: Frontend Development & UI
 - [ ] Create R1 creation structure (HTML/CSS/JS)
+- [ ] Implement pixel art design system with lautuche orange theme
+- [ ] Build friends list with pixel art cards and scroll wheel navigation
 - [ ] Implement device verification module
 - [ ] Build user management interface
 - [ ] Integrate PTT button and hardware controls
@@ -160,7 +162,8 @@ R1-Walky/
 
 ### Frontend (R1 Creation)
 - **Framework**: Vanilla JavaScript (ES6+)
-- **Styling**: CSS3 with hardware acceleration
+- **Styling**: CSS3 with hardware acceleration and pixel art aesthetics
+- **Design System**: Lautuche orange (#FF6B35) themed pixel art UI
 - **WebRTC**: Native browser WebRTC API
 - **Storage**: R1 Creation Storage API (`window.creationStorage`)
 - **Hardware**: R1 SDK APIs (`window.creationSensors`, hardware events)
@@ -537,11 +540,71 @@ CREATE TABLE encryption_audit (
 5. **Hardware Integration**: Natural use of R1's physical buttons
 
 ### UI/UX Principles for R1
-- **Thumb-Friendly**: All interactions within thumb reach
-- **High Contrast**: Clear visibility on small screen
-- **Minimal Text**: Icons and visual cues over text
+- **Pixel Art Style**: Retro 8-bit aesthetic with crisp, blocky graphics
+- **Lautuche Orange Theme**: Primary color scheme using lautuche orange (#FF6B35 or similar)
+- **Thumb-Friendly**: All interactions within thumb reach on 240x282px screen
+- **High Contrast**: Clear visibility with orange accents on dark backgrounds
+- **Minimal Text**: Icons and pixel art elements over text
 - **Instant Feedback**: Immediate response to all interactions
 - **Hardware-First**: Leverage physical buttons for core actions
+
+### Friends List Design
+- **Pixel Art Cards**: Each friend displayed as a retro-style card
+- **Lautuche Orange Borders**: Orange accent borders and highlights
+- **Scroll Wheel Navigation**: Hardware-based scrolling through friend list
+- **Visual Status Indicators**: Pixel art icons for online/offline status
+- **Touch Selection**: Tap to select, hardware scroll to navigate
+- **Compact Layout**: Optimized for small screen real estate
+
+## Pixel Art Design System
+
+### Color Palette
+- **Primary**: Lautuche Orange (#FF6B35)
+- **Secondary**: Dark Orange (#E55B2B)
+- **Accent**: Bright Orange (#FF8534)
+- **Background**: Dark Gray (#1a1a1a)
+- **Surface**: Medium Gray (#2a2a2a)
+- **Text**: White (#ffffff)
+- **Text Secondary**: Light Gray (#cccccc)
+
+### Pixel Art Guidelines
+- **Grid Size**: 8px base grid for all elements
+- **Border Width**: 2px pixel borders
+- **Corner Radius**: 4px for modern retro feel
+- **Shadow Effects**: 1px offset drop shadows
+- **Icon Size**: 16x16px for status indicators
+- **Typography**: Pixel-perfect fonts, 12-14px sizes
+
+### Component Specifications
+
+#### Friend Card
+```
+┌─────────────────────────┐
+│ ┌───┐ USERNAME          │
+│ │●  │ Online Status     │
+│ └───┘                   │
+│                         │
+│ [CALL] [REMOVE]         │
+└─────────────────────────┘
+```
+
+- **Dimensions**: 200x60px
+- **Border**: 2px lautuche orange
+- **Status Icon**: 8x8px pixel circle
+- **Buttons**: Pixel-style with hover effects
+- **Typography**: 12px pixel font
+
+#### Navigation Indicators
+- **Scroll Arrows**: 8x8px pixel arrows
+- **Active Selection**: Orange highlight border
+- **Hover States**: Subtle orange glow effect
+- **Focus States**: Dashed orange border
+
+### Hardware Integration
+- **Scroll Wheel**: Smooth pixel-perfect scrolling
+- **PTT Button**: Pixel art visual feedback
+- **Touch Gestures**: Swipe indicators with pixel art
+- **Button States**: Pressed/released pixel animations
 
 ### Screen Flow
 ```
@@ -634,6 +697,8 @@ npm test
 - **Crash Rate**: <1% of sessions
 - **Error Rate**: <5% of API requests
 - **User Satisfaction**: >4.5/5 star rating
+- **UI Responsiveness**: <16ms for scroll wheel interactions
+- **Visual Consistency**: 100% adherence to pixel art design system
 - **Support Tickets**: <5% of user base monthly
 
 ## Roadmap & Milestones
@@ -641,6 +706,7 @@ npm test
 ### Month 1: Foundation
 - ✅ Complete project architecture and planning
 - ⏳ Set up development environment
+- ⏳ Create pixel art design system with lautuche orange theme
 - ⏳ Implement basic backend API structure
 - ⏳ Create frontend skeleton with device verification
 
@@ -674,7 +740,7 @@ npm test
 
 ### Development Team
 - **Lead Developer**: Full-stack development (40 hrs/week)
-- **UI/UX Designer**: R1-specific design (20 hrs/week)
+- **UI/UX Designer**: Pixel art design and R1-specific UI (25 hrs/week)
 - **DevOps Engineer**: Infrastructure and deployment (10 hrs/week)
 - **QA Tester**: Manual testing and automation (20 hrs/week)
 
@@ -688,7 +754,8 @@ npm test
 
 ### Development Tools
 - **Version Control**: GitHub Pro - $45/month
-- **Design Tools**: Figma - $144/month
+- **Design Tools**: Figma for pixel art design - $144/month
+- **Pixel Art Tools**: Aseprite for pixel art creation - $20 (one-time)
 - **Testing Tools**: BrowserStack for R1 testing - $39/month
 - **CI/CD**: GitHub Actions (included)
 
