@@ -10,10 +10,16 @@ class WalkieTalkie {
         this.localStream = null;
         this.remoteStream = null;
 
-        // Initialize crypto utilities
-        this.keyExchange = new KeyExchange();
-        this.voiceEncryption = new VoiceEncryption();
-        this.secureStorage = new SecureStorage();
+        // Simplified storage - no crypto for now
+        this.storage = {
+            set: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+            get: (key) => {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : null;
+            },
+            remove: (key) => localStorage.removeItem(key),
+            clear: () => localStorage.clear()
+        };
 
         this.init();
     }
@@ -160,151 +166,48 @@ class WalkieTalkie {
 
     updateDebugInfo() {
         const debugInfo = document.getElementById('debug-info');
-        const deviceInfo = this.getDeviceInfo();
-
-        // Check cookie status
-        const cookies = document.cookie.split(';');
-        const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('r1_walky_session='));
-        const hasCookie = !!sessionCookie;
+        const deviceId = this.storage.get('device_id') || 'Not set';
+        const session = this.storage.get('r1_walky_session');
 
         debugInfo.innerHTML = `
             <div><strong>User:</strong> ${this.currentUser ? this.currentUser.username : 'None'}</div>
             <div><strong>User ID:</strong> ${this.currentUser ? this.currentUser.id : 'None'}</div>
-            <div><strong>Device ID:</strong> ${deviceInfo.deviceId || 'Unknown'}</div>
-            <div><strong>Verification:</strong> ${deviceInfo.verificationCode || 'None'}</div>
-            <div><strong>Has Sensors:</strong> ${deviceInfo.hasAccelerometer ? 'Yes' : 'No'}</div>
-            <div><strong>Has Storage:</strong> ${deviceInfo.hasCreationStorage ? 'Yes' : 'No'}</div>
-            <div><strong>Auth Method:</strong> Cookies</div>
-            <div><strong>Session Cookie:</strong> ${hasCookie ? 'Yes' : 'No'}</div>
-            <div><strong>User Agent:</strong> ${navigator.userAgent.substring(0, 30)}...</div>
+            <div><strong>Device ID:</strong> ${deviceId}</div>
+            <div><strong>Auth Method:</strong> localStorage</div>
+            <div><strong>Session:</strong> ${session ? 'Active' : 'None'}</div>
             <div><strong>Platform:</strong> ${navigator.platform}</div>
-            <div><strong>Session:</strong> ${this.currentUser ? 'Active' : 'None'}</div>
         `;
     }
 
-    // Enhanced device info with more debugging
+    // Simplified device info - just generate a consistent device ID
     async getDeviceInfo() {
-        // Try to get device info from R1 hardware APIs
         try {
-            // Check if we're in an R1 environment
-            if (typeof window !== 'undefined' && window.navigator) {
-                // Try to get device info from various sources
-                const deviceInfo = {
-                    deviceId: null,
-                    verificationCode: null,
-                    userAgent: navigator.userAgent,
-                    platform: navigator.platform,
-                    hasAccelerometer: false,
-                    hasCreationStorage: false,
-                    hasCreationSensors: false,
-                    isDevelopment: false
-                };
-
-                // Check for R1-specific APIs or identifiers
-                if (window.creationStorage && window.creationStorage.plain) {
-                    deviceInfo.hasCreationStorage = true;
-                    console.log('✅ creationStorage.plain available');
-
-                    // Try to get stored device info from secure storage first
-                    if (window.creationStorage.secure) {
-                        try {
-                            const storedDeviceId = await window.creationStorage.secure.getItem('r1_walky_device_id');
-                            if (storedDeviceId) {
-                                deviceInfo.deviceId = atob(storedDeviceId);
-                                console.log('📱 Stored device ID found in secure storage:', deviceInfo.deviceId);
-                            } else {
-                                // Generate and store a new device ID in secure storage
-                                const newDeviceId = 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-                                await window.creationStorage.secure.setItem('r1_walky_device_id', btoa(newDeviceId));
-                                deviceInfo.deviceId = newDeviceId;
-                                console.log('🆕 New device ID generated and stored in secure storage:', deviceInfo.deviceId);
-                            }
-                        } catch (error) {
-                            console.log('⚠️ Error accessing secure storage for device ID:', error);
-                            // Fallback to plain storage
-                            try {
-                                const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
-                                if (storedDeviceId) {
-                                    deviceInfo.deviceId = atob(storedDeviceId);
-                                    console.log('📱 Stored device ID found in plain storage:', deviceInfo.deviceId);
-                                }
-                            } catch (e) {
-                                console.log('⚠️ Error accessing plain storage for device ID:', e);
-                            }
-                        }
-                    } else {
-                        // Fallback to plain storage if secure storage not available
-                        try {
-                            const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
-                            if (storedDeviceId) {
-                                deviceInfo.deviceId = atob(storedDeviceId);
-                                console.log('📱 Stored device ID found in plain storage:', deviceInfo.deviceId);
-                            } else {
-                                console.log('❌ No stored device ID');
-                            }
-                        } catch (e) {
-                            console.log('⚠️ Error accessing stored device ID:', e);
-                        }
-                    }
-                } else {
-                    console.log('❌ creationStorage.plain not available');
-                }
-
-                // Check for hardware identifier in various places
-                // This is where FF4D06 should be found on a real R1
-                if (navigator.userAgent.includes('R1') || navigator.platform.includes('R1')) {
-                    deviceInfo.verificationCode = 'FF4D06'; // This should come from hardware
-                    deviceInfo.deviceId = deviceInfo.deviceId || 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-                    console.log('🤖 R1 detected in user agent/platform');
-                } else {
-                    console.log('❌ R1 not detected in user agent/platform');
-                }
-
-                // Check for device sensors (R1 specific)
-                if (window.creationSensors && window.creationSensors.accelerometer) {
-                    deviceInfo.hasAccelerometer = true;
-                    deviceInfo.hasCreationSensors = true;
-                    deviceInfo.verificationCode = 'FF4D06'; // Presence of creationSensors indicates R1
-                    console.log('✅ creationSensors.accelerometer available');
-                } else {
-                    console.log('❌ creationSensors.accelerometer not available');
-                }
-
-                // Check for creation storage
-                if (window.creationStorage) {
-                    deviceInfo.hasCreationStorage = true;
-                    if (!deviceInfo.verificationCode) {
-                        deviceInfo.verificationCode = 'FF4D06'; // Presence of creationStorage indicates R1
-                    }
-                    console.log('✅ creationStorage available');
-                } else {
-                    console.log('❌ creationStorage not available');
-                }
-
-                // Check for other R1-specific APIs
-                if (window.PluginMessageHandler) {
-                    console.log('✅ PluginMessageHandler available (R1 API)');
-                } else {
-                    console.log('❌ PluginMessageHandler not available');
-                }
-
-                console.log('📊 Device info detected:', deviceInfo);
-                return deviceInfo;
+            // Try to get existing device ID from storage
+            let deviceId = this.storage.get('device_id');
+            
+            if (!deviceId) {
+                // Generate a new device ID
+                deviceId = 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                this.storage.set('device_id', deviceId);
+                console.log('🆕 Generated new device ID:', deviceId);
+            } else {
+                console.log('📱 Using existing device ID:', deviceId);
             }
+
+            return {
+                deviceId: deviceId,
+                verificationCode: 'FF4D06', // Always allow for now
+                userAgent: navigator.userAgent,
+                platform: navigator.platform
+            };
         } catch (error) {
             console.error('❌ Error getting device info:', error);
+            // Fallback
+            return {
+                deviceId: 'R1-FALLBACK-' + Date.now(),
+                verificationCode: 'FF4D06'
+            };
         }
-
-        // Fallback for development - simulate R1 device
-        console.log('🔧 Using development fallback device info');
-        return {
-            deviceId: 'R1-DEV-001',
-            verificationCode: 'FF4D06', // Allow development mode
-            isDevelopment: true,
-            hasAccelerometer: false,
-            hasCreationStorage: false,
-            hasCreationSensors: false
-        };
     }
 
     // Screen Management
@@ -378,12 +281,11 @@ class WalkieTalkie {
         }
     }
 
-    // Session Management - Simplified to use cookies
+    // Session Management - Simplified localStorage only
     saveUserSession(user) {
         try {
-            console.log('💾 Saving user session to cookie for:', user.username);
+            console.log('💾 Saving user session for:', user.username);
 
-            // Save to cookie (expires in 30 days)
             const sessionData = {
                 userId: user.id,
                 username: user.username,
@@ -391,10 +293,8 @@ class WalkieTalkie {
                 loginTime: Date.now()
             };
 
-            const encodedData = btoa(JSON.stringify(sessionData));
-            document.cookie = `r1_walky_session=${encodedData}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-
-            console.log('✅ Session saved to cookie');
+            this.storage.set('r1_walky_session', sessionData);
+            console.log('✅ Session saved to localStorage');
         } catch (error) {
             console.error('❌ Failed to save session:', error);
         }
@@ -402,42 +302,25 @@ class WalkieTalkie {
 
     loadUserSession() {
         try {
-            console.log('🔄 Loading user session from cookie...');
+            console.log('🔄 Loading user session from localStorage...');
 
-            // Get cookie
-            const cookies = document.cookie.split(';');
-            const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('r1_walky_session='));
+            const session = this.storage.get('r1_walky_session');
 
-            if (sessionCookie) {
-                const encodedData = sessionCookie.split('=')[1];
-                if (!encodedData) {
-                    console.log('❌ Empty session cookie data');
-                    return false;
-                }
-
-                const session = JSON.parse(atob(encodedData));
-
-                // Validate session data
-                if (!session.userId || !session.username) {
-                    console.log('❌ Invalid session data:', session);
-                    return false;
-                }
-
+            if (session && session.userId && session.username) {
                 this.currentUser = {
                     id: session.userId,
                     username: session.username,
                     deviceId: session.deviceId
                 };
 
-                console.log('✅ Session loaded from cookie:', this.currentUser.username);
+                console.log('✅ Session loaded:', this.currentUser.username);
                 return true;
             }
 
-            console.log('❌ No session cookie found');
+            console.log('❌ No valid session found');
             return false;
         } catch (error) {
             console.error('❌ Failed to load session:', error);
-            // Clear corrupted cookie
             this.clearUserSession();
             return false;
         }
@@ -445,13 +328,11 @@ class WalkieTalkie {
 
     clearUserSession() {
         try {
-            console.log('🧹 Clearing session cookie');
+            console.log('🧹 Clearing user session');
 
-            // Clear cookie
-            document.cookie = 'r1_walky_session=; path=/; max-age=0; SameSite=Lax';
-
+            this.storage.remove('r1_walky_session');
             this.currentUser = null;
-            console.log('✅ Session cookie cleared');
+            console.log('✅ Session cleared');
         } catch (error) {
             console.error('❌ Failed to clear session:', error);
         }
@@ -461,29 +342,12 @@ class WalkieTalkie {
     async checkStorageContents() {
         console.log('🔍 Checking storage contents...');
 
-        // Check localStorage
-        const localSession = localStorage.getItem('r1_walky_session');
-        console.log('💾 localStorage session:', localSession ? JSON.parse(localSession) : 'None');
-
-        // Check R1 secure storage
-        if (this.isR1Device()) {
-            try {
-                const r1Session = await window.creationStorage.secure.getItem('r1_walky_auth_session');
-                console.log('� R1 secure storage session:', r1Session ? JSON.parse(atob(r1Session)) : 'None');
-            } catch (error) {
-                console.log('❌ R1 secure storage error:', error);
-            }
-        }
-
-        // Check secureStorage
-        if (this.secureStorage) {
-            try {
-                const secureSession = await this.secureStorage.getItem('user_session');
-                console.log('🔐 secureStorage session:', secureSession ? JSON.parse(atob(secureSession)) : 'None');
-            } catch (error) {
-                console.log('❌ secureStorage error:', error);
-            }
-        }
+        const session = this.storage.get('r1_walky_session');
+        const deviceId = this.storage.get('device_id');
+        
+        console.log('💾 Session:', session);
+        console.log('📱 Device ID:', deviceId);
+        console.log('👤 Current User:', this.currentUser);
     }
 
     // Debug method to clear all storage
@@ -491,30 +355,11 @@ class WalkieTalkie {
         console.log('🧹 Clearing all storage...');
 
         try {
-            // Clear R1 secure storage
-            if (this.isR1Device()) {
-                await window.creationStorage.secure.removeItem('r1_walky_auth_session');
-                await window.creationStorage.secure.removeItem('r1_walky_device_id');
-                console.log('✅ Cleared R1 secure storage');
-            }
-
-            // Clear secureStorage
-            if (this.secureStorage) {
-                await this.secureStorage.removeItem('user_session');
-                console.log('✅ Cleared secureStorage');
-            }
-
-            // Clear localStorage
-            localStorage.removeItem('r1_walky_session');
-            console.log('✅ Cleared localStorage');
-
-            // Clear current user
+            this.storage.clear();
             this.currentUser = null;
-            console.log('✅ Cleared current user');
-
-            // Redirect to auth
             this.showAuthScreen();
-            console.log('✅ Redirected to auth screen');
+            this.updateDebugInfo();
+            console.log('✅ All storage cleared');
         } catch (error) {
             console.error('❌ Error clearing storage:', error);
         }
