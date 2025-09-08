@@ -19,12 +19,17 @@ class WalkieTalkie {
     }
 
     async init() {
+        console.log('🚀 Initializing WalkieTalkie app...');
+
         // Check for existing user session
+        console.log('🔍 Checking for existing user session...');
         const hasSession = await this.loadUserSession();
+
         if (hasSession && this.currentUser) {
-            console.log('Found existing session for user:', this.currentUser.username);
+            console.log('✅ Found existing session for user:', this.currentUser.username);
             this.showMainScreen();
         } else {
+            console.log('❌ No valid session found, showing auth screen');
             this.setupEventListeners();
             this.verifyDevice();
         }
@@ -43,6 +48,9 @@ class WalkieTalkie {
         // Add user ID to headers if we have a current user
         if (this.currentUser && this.currentUser.id) {
             headers['X-User-ID'] = this.currentUser.id;
+            console.log('🔑 Adding auth header for user:', this.currentUser.username, 'ID:', this.currentUser.id);
+        } else {
+            console.log('⚠️ No current user for API call to:', endpoint);
         }
 
         const response = await fetch(endpoint, {
@@ -50,9 +58,11 @@ class WalkieTalkie {
             headers
         });
 
+        console.log('📡 API call to:', endpoint, 'Status:', response.status);
+
         // Handle authentication errors
         if (response.status === 401) {
-            console.log('Authentication error - clearing session and redirecting to auth');
+            console.log('🚫 Authentication error - clearing session and redirecting to auth');
             await this.clearUserSession();
             this.showAuthScreen();
             throw new Error('Authentication required');
@@ -61,43 +71,22 @@ class WalkieTalkie {
         return response;
     }
 
-    // Device Verification
+    // Device Verification - Simplified for development
     async verifyDevice() {
         const status = document.getElementById('verify-status');
 
         try {
             status.textContent = 'Checking device...';
 
-            // Try to get device information from R1 APIs
+            // For development, skip R1 verification and proceed directly
+            console.log('🔧 Development mode: Skipping R1 verification');
+            status.textContent = 'Development mode - proceeding...';
+            status.className = 'status';
+
+            // Get device info (but don't require R1)
             const deviceInfo = await this.getDeviceInfo();
 
-            if (deviceInfo && deviceInfo.verificationCode === 'FF4D06') {
-                // Verify with backend
-                const verificationResponse = await fetch('/api/auth/verify-device', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        deviceId: deviceInfo.deviceId || 'R1-DEV-001',
-                        verificationCode: deviceInfo.verificationCode
-                    })
-                });
-
-                if (verificationResponse.ok) {
-                    const result = await verificationResponse.json();
-                    status.textContent = result.message;
-                    status.className = 'status';
-                    setTimeout(() => this.showAuthScreen(), 1000);
-                } else {
-                    const error = await verificationResponse.json();
-                    status.textContent = error.message || 'Device verification failed';
-                    status.className = 'status error';
-                }
-            } else {
-                status.textContent = 'Device verification code not found. Is this a genuine R1?';
-                status.className = 'status error';
-                // For development, proceed anyway after a delay
-                setTimeout(() => this.showAuthScreen(), 3000);
-            }
+            setTimeout(() => this.showAuthScreen(), 1000);
         } catch (error) {
             console.error('Device verification failed:', error);
             status.textContent = 'Verification error - proceeding in development mode';
@@ -112,11 +101,38 @@ class WalkieTalkie {
         const debugPanel = document.getElementById('debug-panel');
         debugPanel.style.display = 'block';
         this.updateDebugInfo();
+
+        // Add check storage button if it doesn't exist
+        if (!document.getElementById('check-storage')) {
+            const checkButton = document.createElement('button');
+            checkButton.id = 'check-storage';
+            checkButton.className = 'btn small';
+            checkButton.textContent = 'Check Cookie';
+            checkButton.addEventListener('click', () => this.checkStorageContents());
+            debugPanel.appendChild(checkButton);
+        }
+
+        // Add clear storage button if it doesn't exist
+        if (!document.getElementById('clear-storage')) {
+            const clearButton = document.createElement('button');
+            clearButton.id = 'clear-storage';
+            clearButton.className = 'btn small';
+            clearButton.textContent = 'Clear Cookie';
+            clearButton.style.background = '#f44336';
+            clearButton.style.borderColor = '#d32f2f';
+            clearButton.addEventListener('click', () => this.clearAllStorage());
+            debugPanel.appendChild(clearButton);
+        }
     }
 
     updateDebugInfo() {
         const debugInfo = document.getElementById('debug-info');
         const deviceInfo = this.getDeviceInfo();
+
+        // Check cookie status
+        const cookies = document.cookie.split(';');
+        const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('r1_walky_session='));
+        const hasCookie = !!sessionCookie;
 
         debugInfo.innerHTML = `
             <div><strong>User:</strong> ${this.currentUser ? this.currentUser.username : 'None'}</div>
@@ -125,6 +141,8 @@ class WalkieTalkie {
             <div><strong>Verification:</strong> ${deviceInfo.verificationCode || 'None'}</div>
             <div><strong>Has Sensors:</strong> ${deviceInfo.hasAccelerometer ? 'Yes' : 'No'}</div>
             <div><strong>Has Storage:</strong> ${deviceInfo.hasCreationStorage ? 'Yes' : 'No'}</div>
+            <div><strong>Auth Method:</strong> Cookies</div>
+            <div><strong>Session Cookie:</strong> ${hasCookie ? 'Yes' : 'No'}</div>
             <div><strong>User Agent:</strong> ${navigator.userAgent.substring(0, 30)}...</div>
             <div><strong>Platform:</strong> ${navigator.platform}</div>
             <div><strong>Session:</strong> ${this.currentUser ? 'Active' : 'None'}</div>
@@ -154,17 +172,46 @@ class WalkieTalkie {
                     deviceInfo.hasCreationStorage = true;
                     console.log('✅ creationStorage.plain available');
 
-                    // Try to get stored device info
-                    try {
-                        const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
-                        if (storedDeviceId) {
-                            deviceInfo.deviceId = atob(storedDeviceId);
-                            console.log('📱 Stored device ID found:', deviceInfo.deviceId);
-                        } else {
-                            console.log('❌ No stored device ID');
+                    // Try to get stored device info from secure storage first
+                    if (window.creationStorage.secure) {
+                        try {
+                            const storedDeviceId = await window.creationStorage.secure.getItem('r1_walky_device_id');
+                            if (storedDeviceId) {
+                                deviceInfo.deviceId = atob(storedDeviceId);
+                                console.log('📱 Stored device ID found in secure storage:', deviceInfo.deviceId);
+                            } else {
+                                // Generate and store a new device ID in secure storage
+                                const newDeviceId = 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                                await window.creationStorage.secure.setItem('r1_walky_device_id', btoa(newDeviceId));
+                                deviceInfo.deviceId = newDeviceId;
+                                console.log('🆕 New device ID generated and stored in secure storage:', deviceInfo.deviceId);
+                            }
+                        } catch (error) {
+                            console.log('⚠️ Error accessing secure storage for device ID:', error);
+                            // Fallback to plain storage
+                            try {
+                                const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
+                                if (storedDeviceId) {
+                                    deviceInfo.deviceId = atob(storedDeviceId);
+                                    console.log('📱 Stored device ID found in plain storage:', deviceInfo.deviceId);
+                                }
+                            } catch (e) {
+                                console.log('⚠️ Error accessing plain storage for device ID:', e);
+                            }
                         }
-                    } catch (e) {
-                        console.log('⚠️ Error accessing stored device ID:', e);
+                    } else {
+                        // Fallback to plain storage if secure storage not available
+                        try {
+                            const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
+                            if (storedDeviceId) {
+                                deviceInfo.deviceId = atob(storedDeviceId);
+                                console.log('📱 Stored device ID found in plain storage:', deviceInfo.deviceId);
+                            } else {
+                                console.log('❌ No stored device ID');
+                            }
+                        } catch (e) {
+                            console.log('⚠️ Error accessing stored device ID:', e);
+                        }
                     }
                 } else {
                     console.log('❌ creationStorage.plain not available');
@@ -266,11 +313,15 @@ class WalkieTalkie {
         try {
             status.textContent = 'Registering...';
 
+            // Get device info for device ID
+            const deviceInfo = await this.getDeviceInfo();
+            const deviceId = deviceInfo.deviceId || 'R1-DEV-001';
+
             const response = await this.apiCall('/api/users', {
                 method: 'POST',
                 body: JSON.stringify({
                     username: username,
-                    deviceId: 'R1-DEV-001' // In real R1, get from hardware
+                    deviceId: deviceId
                 })
             });
 
@@ -294,9 +345,12 @@ class WalkieTalkie {
         }
     }
 
-    // Session Management
-    async saveUserSession(user) {
+    // Session Management - Simplified to use cookies
+    saveUserSession(user) {
         try {
+            console.log('💾 Saving user session to cookie for:', user.username);
+
+            // Save to cookie (expires in 30 days)
             const sessionData = {
                 userId: user.id,
                 username: user.username,
@@ -304,60 +358,119 @@ class WalkieTalkie {
                 loginTime: Date.now()
             };
 
-            if (this.secureStorage) {
-                await this.secureStorage.storeCredentials(user.username, user.id);
-                await this.secureStorage.setItem('user_session', btoa(JSON.stringify(sessionData)));
-            }
+            const encodedData = btoa(JSON.stringify(sessionData));
+            document.cookie = `r1_walky_session=${encodedData}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
 
-            // Also store in localStorage as backup
-            localStorage.setItem('r1_walky_session', JSON.stringify(sessionData));
+            console.log('✅ Session saved to cookie');
         } catch (error) {
-            console.error('Failed to save session:', error);
+            console.error('❌ Failed to save session:', error);
         }
     }
 
-    async loadUserSession() {
+    loadUserSession() {
         try {
-            // Try secure storage first
-            if (this.secureStorage) {
-                const sessionData = await this.secureStorage.getItem('user_session');
-                if (sessionData) {
-                    const session = JSON.parse(atob(sessionData));
-                    this.currentUser = {
-                        id: session.userId,
-                        username: session.username,
-                        deviceId: session.deviceId
-                    };
-                    return true;
-                }
-            }
+            console.log('🔄 Loading user session from cookie...');
 
-            // Fallback to localStorage
-            const sessionData = localStorage.getItem('r1_walky_session');
-            if (sessionData) {
-                const session = JSON.parse(sessionData);
+            // Get cookie
+            const cookies = document.cookie.split(';');
+            const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('r1_walky_session='));
+
+            if (sessionCookie) {
+                const encodedData = sessionCookie.split('=')[1];
+                const session = JSON.parse(atob(encodedData));
+
                 this.currentUser = {
                     id: session.userId,
                     username: session.username,
                     deviceId: session.deviceId
                 };
+
+                console.log('✅ Session loaded from cookie:', this.currentUser.username);
                 return true;
             }
+
+            console.log('❌ No session cookie found');
+            return false;
         } catch (error) {
-            console.error('Failed to load session:', error);
+            console.error('❌ Failed to load session:', error);
+            return false;
         }
-        return false;
     }
 
-    async clearUserSession() {
+    clearUserSession() {
         try {
+            console.log('🧹 Clearing session cookie');
+
+            // Clear cookie
+            document.cookie = 'r1_walky_session=; path=/; max-age=0; SameSite=Lax';
+
+            this.currentUser = null;
+            console.log('✅ Session cookie cleared');
+        } catch (error) {
+            console.error('❌ Failed to clear session:', error);
+        }
+    }
+
+    // Debug method to check storage contents
+    async checkStorageContents() {
+        console.log('🔍 Checking storage contents...');
+
+        // Check localStorage
+        const localSession = localStorage.getItem('r1_walky_session');
+        console.log('💾 localStorage session:', localSession ? JSON.parse(localSession) : 'None');
+
+        // Check R1 secure storage
+        if (this.isR1Device()) {
+            try {
+                const r1Session = await window.creationStorage.secure.getItem('r1_walky_auth_session');
+                console.log('� R1 secure storage session:', r1Session ? JSON.parse(atob(r1Session)) : 'None');
+            } catch (error) {
+                console.log('❌ R1 secure storage error:', error);
+            }
+        }
+
+        // Check secureStorage
+        if (this.secureStorage) {
+            try {
+                const secureSession = await this.secureStorage.getItem('user_session');
+                console.log('🔐 secureStorage session:', secureSession ? JSON.parse(atob(secureSession)) : 'None');
+            } catch (error) {
+                console.log('❌ secureStorage error:', error);
+            }
+        }
+    }
+
+    // Debug method to clear all storage
+    async clearAllStorage() {
+        console.log('🧹 Clearing all storage...');
+
+        try {
+            // Clear R1 secure storage
+            if (this.isR1Device()) {
+                await window.creationStorage.secure.removeItem('r1_walky_auth_session');
+                await window.creationStorage.secure.removeItem('r1_walky_device_id');
+                console.log('✅ Cleared R1 secure storage');
+            }
+
+            // Clear secureStorage
             if (this.secureStorage) {
                 await this.secureStorage.removeItem('user_session');
+                console.log('✅ Cleared secureStorage');
             }
+
+            // Clear localStorage
             localStorage.removeItem('r1_walky_session');
+            console.log('✅ Cleared localStorage');
+
+            // Clear current user
             this.currentUser = null;
+            console.log('✅ Cleared current user');
+
+            // Redirect to auth
+            this.showAuthScreen();
+            console.log('✅ Redirected to auth screen');
         } catch (error) {
-            console.error('Failed to clear session:', error);
+            console.error('❌ Error clearing storage:', error);
         }
     }
 
@@ -389,6 +502,11 @@ class WalkieTalkie {
 
     renderFriendsList() {
         const friendsList = document.getElementById('friends-list');
+        if (!friendsList) {
+            console.warn('⚠️ Friends list element not found');
+            return;
+        }
+
         friendsList.innerHTML = '';
 
         if (this.friends.length === 0) {
@@ -403,9 +521,17 @@ class WalkieTalkie {
                 <span class="friend-name">${friend.username}</span>
                 <span class="friend-status ${friend.status || 'offline'}">${friend.status || 'offline'}</span>
             `;
-            friendItem.addEventListener('click', () => this.callFriend(friend));
+
+            // Add click listener immediately
+            friendItem.addEventListener('click', () => {
+                console.log(`👆 Friend clicked: ${friend.username}`);
+                this.callFriend(friend);
+            });
+
             friendsList.appendChild(friendItem);
         });
+
+        console.log(`✅ Rendered ${this.friends.length} friends`);
     }
 
     showAddFriendModal() {
@@ -471,6 +597,11 @@ class WalkieTalkie {
 
     renderFriendRequests() {
         const requestsList = document.getElementById('friend-requests-list');
+        if (!requestsList) {
+            console.warn('⚠️ Friend requests list element not found');
+            return;
+        }
+
         requestsList.innerHTML = '';
 
         if (this.friendRequests.length === 0) {
@@ -489,15 +620,24 @@ class WalkieTalkie {
                 </div>
             `;
 
-            // Add event listeners
+            // Add event listeners immediately after creating elements
             const acceptBtn = requestItem.querySelector('.accept-btn');
             const rejectBtn = requestItem.querySelector('.reject-btn');
 
-            acceptBtn.addEventListener('click', () => this.acceptFriendRequest(request.friendshipId));
-            rejectBtn.addEventListener('click', () => this.rejectFriendRequest(request.friendshipId));
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', () => this.acceptFriendRequest(request.friendshipId));
+                console.log(`✅ Added accept listener for request ${request.friendshipId}`);
+            }
+
+            if (rejectBtn) {
+                rejectBtn.addEventListener('click', () => this.rejectFriendRequest(request.friendshipId));
+                console.log(`✅ Added reject listener for request ${request.friendshipId}`);
+            }
 
             requestsList.appendChild(requestItem);
         });
+
+        console.log(`✅ Rendered ${this.friendRequests.length} friend requests`);
     }
 
     async acceptFriendRequest(friendshipId) {
@@ -681,6 +821,26 @@ class WalkieTalkie {
             this.socket.on('ice-candidate', (data) => {
                 this.handleIceCandidate(data);
             });
+
+            // Handle friend request received
+            this.socket.on('friend-request-received', (data) => {
+                this.handleFriendRequestReceived(data);
+            });
+
+            // Handle friend request accepted
+            this.socket.on('friend-request-accepted', (data) => {
+                this.handleFriendRequestAccepted(data);
+            });
+
+            // Handle friend request rejected
+            this.socket.on('friend-request-rejected', (data) => {
+                this.handleFriendRequestRejected(data);
+            });
+
+            // Handle friendship updated
+            this.socket.on('friendship-updated', (data) => {
+                this.handleFriendshipUpdated(data);
+            });
         }
     }
 
@@ -772,6 +932,72 @@ class WalkieTalkie {
                 console.error('Error adding ICE candidate:', error);
             }
         }
+    }
+
+    // Friend-related WebSocket event handlers
+    handleFriendRequestReceived(data) {
+        console.log('Friend request received:', data);
+        this.showNotification(`Friend request from ${data.fromUser.username}`, 'info');
+        // Refresh friend requests list
+        this.loadFriendRequests();
+    }
+
+    handleFriendRequestAccepted(data) {
+        console.log('Friend request accepted:', data);
+        this.showNotification(`${data.accepter.username} accepted your friend request!`, 'success');
+        // Refresh friends list
+        this.loadFriends();
+    }
+
+    handleFriendRequestRejected(data) {
+        console.log('Friend request rejected:', data);
+        this.showNotification('Your friend request was declined', 'warning');
+    }
+
+    handleFriendshipUpdated(data) {
+        console.log('Friendship updated:', data);
+        if (data.status === 'accepted') {
+            this.showNotification(`You are now friends with ${data.friend.username}!`, 'success');
+            // Refresh friends list
+            this.loadFriends();
+        }
+    }
+
+    // Notification system
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <span class="notification-message">${message}</span>
+            <button class="notification-close">&times;</button>
+        `;
+
+        // Add to notifications container
+        let container = document.getElementById('notifications-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'notifications-container';
+            container.className = 'notifications-container';
+            document.body.appendChild(container);
+        }
+
+        container.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+
+        // Close button functionality
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        });
     }
 
     async playRemoteAudio() {
@@ -922,32 +1148,47 @@ class WalkieTalkie {
         friendItems[currentIndex].classList.add('selected');
     }
 
-    // Event Listeners
+    // Event Listeners - Improved with better error handling
     setupEventListeners() {
+        console.log('🎧 Setting up event listeners...');
+
+        // Helper function to safely add event listener
+        const addListener = (id, event, handler, description) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener(event, handler);
+                console.log(`✅ Added ${event} listener for ${description}`);
+            } else {
+                console.warn(`⚠️ Element ${id} not found for ${description}`);
+            }
+        };
+
         // Auth
-        document.getElementById('register-btn').addEventListener('click', () => this.registerUser());
+        addListener('register-btn', 'click', () => this.registerUser(), 'register button');
 
         // Friends
-        document.getElementById('add-friend-btn').addEventListener('click', () => this.showAddFriendModal());
-        document.getElementById('friend-requests-btn').addEventListener('click', () => this.showFriendRequestsModal());
-        document.getElementById('cancel-add-friend').addEventListener('click', () => this.hideAddFriendModal());
-        document.getElementById('confirm-add-friend').addEventListener('click', () => this.addFriend());
-        document.getElementById('close-friend-requests').addEventListener('click', () => this.hideFriendRequestsModal());
+        addListener('add-friend-btn', 'click', () => this.showAddFriendModal(), 'add friend button');
+        addListener('friend-requests-btn', 'click', () => this.showFriendRequestsModal(), 'friend requests button');
+        addListener('cancel-add-friend', 'click', () => this.hideAddFriendModal(), 'cancel add friend');
+        addListener('confirm-add-friend', 'click', () => this.addFriend(), 'confirm add friend');
+        addListener('close-friend-requests', 'click', () => this.hideFriendRequestsModal(), 'close friend requests');
 
         // PTT
-        document.getElementById('ptt-indicator').addEventListener('click', () => {
+        addListener('ptt-indicator', 'click', () => {
             if (this.isPTTPressed) {
                 this.handlePTTEnd();
             } else {
                 this.handlePTTStart();
             }
-        });
+        }, 'PTT indicator');
+
+        // Debug
+        addListener('refresh-debug', 'click', () => this.updateDebugInfo(), 'refresh debug');
 
         // Hardware events
         this.setupHardwareEvents();
 
-        // Debug
-        document.getElementById('refresh-debug').addEventListener('click', () => this.updateDebugInfo());
+        console.log('✅ Event listeners setup complete');
     }
 }
 

@@ -391,3 +391,76 @@ input:focus {
     margin-bottom: 5px;
     word-wrap: break-word;
 }
+
+/* Notifications */
+.notifications-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+    max-width: 220px;
+}
+
+.notification {
+    background: #2a2a2a;
+    border: 2px solid #ff6b35;
+    border-radius: 0;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.3s ease-out;
+}
+
+.notification.info {
+    border-color: #2196F3;
+}
+
+.notification.success {
+    border-color: #4CAF50;
+}
+
+.notification.warning {
+    border-color: #FF9800;
+}
+
+.notification.error {
+    border-color: #f44336;
+}
+
+.notification-message {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.notification-close {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-close:hover {
+    color: #ff6b35;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
