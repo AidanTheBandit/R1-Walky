@@ -469,19 +469,19 @@ class WalkieTalkie {
 
             // Create peer connection
             this.peerConnection = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
             });
+
+            // Set up event handlers
+            this.setupPeerConnectionEvents();
 
             // Add local stream
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
-
-            // Handle remote stream
-            this.peerConnection.ontrack = (event) => {
-                this.remoteStream = event.streams[0];
-                this.playRemoteAudio();
-            };
 
             // Create offer
             const offer = await this.peerConnection.createOffer();
@@ -502,9 +502,13 @@ class WalkieTalkie {
                 this.currentCall = {
                     id: callData.callId,
                     friend: friend,
-                    status: 'calling'
+                    status: 'calling',
+                    isInitiator: true
                 };
                 this.updatePTTStatus('connecting');
+
+                // Set up socket connection for signaling
+                this.setupSignalingSocket();
             } else {
                 throw new Error('Failed to initiate call');
             }
@@ -514,6 +518,161 @@ class WalkieTalkie {
             this.updateCallStatus('Call failed');
             this.setFriendStatus(friend.username, 'offline');
             this.endCall();
+        }
+    }
+
+    setupPeerConnectionEvents() {
+        // Handle ICE candidates
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate && this.currentCall) {
+                // Send ICE candidate to peer
+                this.sendSignalingMessage('ice-candidate', {
+                    callId: this.currentCall.id,
+                    candidate: event.candidate,
+                    targetId: this.currentCall.friend.id
+                });
+            }
+        };
+
+        // Handle connection state changes
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('Connection state:', this.peerConnection.connectionState);
+            if (this.peerConnection.connectionState === 'connected') {
+                this.updateCallStatus(`Connected to ${this.currentCall.friend.username}`);
+                this.updatePTTStatus('ready');
+                this.setFriendStatus(this.currentCall.friend.username, 'online');
+            } else if (this.peerConnection.connectionState === 'disconnected' ||
+                       this.peerConnection.connectionState === 'failed') {
+                this.updateCallStatus('Call disconnected');
+                this.endCall();
+            }
+        };
+
+        // Handle remote stream
+        this.peerConnection.ontrack = (event) => {
+            console.log('Received remote stream');
+            this.remoteStream = event.streams[0];
+            this.playRemoteAudio();
+        };
+    }
+
+    setupSignalingSocket() {
+        // Initialize socket connection if not already done
+        if (!this.socket) {
+            this.socket = io();
+
+            this.socket.on('connect', () => {
+                console.log('Connected to signaling server');
+                // Register this user
+                if (this.currentUser) {
+                    this.socket.emit('register', this.currentUser.id);
+                }
+            });
+
+            // Handle incoming call
+            this.socket.on('incoming-call', (data) => {
+                this.handleIncomingCall(data);
+            });
+
+            // Handle call answered
+            this.socket.on('call-answered', (data) => {
+                this.handleCallAnswered(data);
+            });
+
+            // Handle ICE candidates
+            this.socket.on('ice-candidate', (data) => {
+                this.handleIceCandidate(data);
+            });
+        }
+    }
+
+    sendSignalingMessage(type, data) {
+        if (this.socket) {
+            this.socket.emit(type, data);
+        }
+    }
+
+    handleIncomingCall(data) {
+        console.log('Incoming call:', data);
+        // For now, automatically accept calls (in a real app, show accept/reject UI)
+        this.acceptIncomingCall(data);
+    }
+
+    async acceptIncomingCall(data) {
+        try {
+            // Get user media
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 16000
+                }
+            });
+
+            // Create peer connection
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+
+            // Set up event handlers
+            this.setupPeerConnectionEvents();
+
+            // Add local stream
+            this.localStream.getTracks().forEach(track => {
+                this.peerConnection.addTrack(track, this.localStream);
+            });
+
+            // Set remote description
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+            // Create answer
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
+
+            // Send answer back
+            this.sendSignalingMessage('answer-call', {
+                callId: data.callId,
+                answer: answer
+            });
+
+            // Set up current call
+            this.currentCall = {
+                id: data.callId,
+                friend: { id: data.caller, username: 'Caller' }, // We don't know the username here
+                status: 'connected',
+                isInitiator: false
+            };
+
+            this.updateCallStatus('Call connected');
+            this.updatePTTStatus('ready');
+
+        } catch (error) {
+            console.error('Error accepting call:', error);
+            this.endCall();
+        }
+    }
+
+    async handleCallAnswered(data) {
+        if (this.currentCall && this.currentCall.id === data.callId) {
+            try {
+                await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                console.log('Call answered successfully');
+            } catch (error) {
+                console.error('Error setting remote description:', error);
+            }
+        }
+    }
+
+    async handleIceCandidate(data) {
+        if (this.currentCall && this.currentCall.id === data.callId) {
+            try {
+                await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (error) {
+                console.error('Error adding ICE candidate:', error);
+            }
         }
     }
 

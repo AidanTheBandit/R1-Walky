@@ -17,9 +17,48 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Middleware to get current user from session
+app.use('/api', (req, res, next) => {
+    // For now, we'll use a simple approach - in production you'd use proper JWT tokens
+    // Try to get user from a session header or similar
+    const userId = req.headers['x-user-id'];
+
+    if (userId) {
+        req.currentUserId = userId;
+    }
+
+    next();
+});
+
+// Helper function to get current user
+function getCurrentUser(req, res, callback) {
+    if (req.currentUserId) {
+        // If we have a user ID from headers, use it
+        db.get('SELECT * FROM users WHERE id = ?', [req.currentUserId], (err, user) => {
+            if (err) {
+                console.error('Database error getting user by ID:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (!user) {
+                return res.status(401).json({ error: 'User not found - please re-authenticate' });
+            }
+            callback(user);
+        });
+    } else {
+        // Fallback: try to get the most recently created user
+        // This is a temporary solution for development
+        db.get('SELECT * FROM users ORDER BY created_at DESC LIMIT 1', (err, user) => {
+            if (err) {
+                console.error('Database error getting recent user:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (!user) {
+                return res.status(401).json({ error: 'No users found - please register first' });
+            }
+            callback(user);
+        });
+    }
+}
 
 // API Routes (must come before static file serving)
 
@@ -226,6 +265,7 @@ app.post('/api/friends', (req, res) => {
                 [currentUser.id, friend.id, friend.id, currentUser.id],
                 (err, existingFriendship) => {
                     if (err) {
+                        console.error('Database error checking existing friendship:', err);
                         return res.status(500).json({ error: 'Database error' });
                     }
 
@@ -244,6 +284,7 @@ app.post('/api/friends', (req, res) => {
                         [friendshipId, currentUser.id, friend.id, 'pending'],
                         function(err) {
                             if (err) {
+                                console.error('Database error creating friendship:', err);
                                 return res.status(500).json({ error: 'Database error' });
                             }
                             res.json({
@@ -361,16 +402,17 @@ app.post('/api/calls/initiate', (req, res) => {
         return res.status(400).json({ error: 'Target username and offer required' });
     }
 
-    // Find target user
-    db.get('SELECT id FROM users WHERE username = ?', [targetUsername], (err, targetUser) => {
-        if (err || !targetUser) {
-            return res.status(404).json({ error: 'User not found' });
+    // For simplicity, assume current user is first user
+    // In a real app, you'd get this from authentication
+    db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
+        if (err || !currentUser) {
+            return res.status(500).json({ error: 'Current user not found' });
         }
 
-        // For simplicity, assume current user is first user
-        db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
-            if (err || !currentUser) {
-                return res.status(500).json({ error: 'Current user not found' });
+        // Find target user
+        db.get('SELECT id FROM users WHERE username = ?', [targetUsername], (err, targetUser) => {
+            if (err || !targetUser) {
+                return res.status(404).json({ error: 'User not found' });
             }
 
             const callId = uuidv4();
@@ -381,6 +423,7 @@ app.post('/api/calls/initiate', (req, res) => {
                 [callId, currentUser.id, targetUser.id],
                 function(err) {
                     if (err) {
+                        console.error('Database error creating call:', err);
                         return res.status(500).json({ error: 'Database error' });
                     }
 
@@ -415,6 +458,7 @@ io.on('connection', (socket) => {
     // Handle call answer
     socket.on('answer-call', (data) => {
         const { callId, answer } = data;
+        console.log('Call answered:', callId);
         // Find caller and send answer
         db.get(
             'SELECT caller_id FROM active_calls WHERE id = ?',
@@ -425,6 +469,8 @@ io.on('connection', (socket) => {
                         callId,
                         answer
                     });
+                } else {
+                    console.error('Call not found for answer:', callId);
                 }
             }
         );
@@ -433,6 +479,7 @@ io.on('connection', (socket) => {
     // Handle ICE candidates
     socket.on('ice-candidate', (data) => {
         const { callId, candidate, targetId } = data;
+        console.log('ICE candidate received for call:', callId);
         io.to(targetId).emit('ice-candidate', {
             callId,
             candidate
