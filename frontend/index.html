@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R1-Walky</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="app">
+        <!-- Device Verification Screen -->
+        <div id="verify-screen" class="screen active">
+            <div class="header">
+                <h1>R1-Walky</h1>
+            </div>
+            <div class="content">
+                <p>Verifying R1 device...</p>
+                <div id="verify-status" class="status">Checking device ID</div>
+            </div>
+        </div>
+
+        <!-- Login/Register Screen -->
+        <div id="auth-screen" class="screen">
+            <div class="header">
+                <h1>Welcome</h1>
+            </div>
+            <div class="content">
+                <input type="text" id="username" placeholder="Enter username" maxlength="20">
+                <button id="register-btn" class="btn primary">Register</button>
+                <div id="auth-status" class="status"></div>
+            </div>
+        </div>
+
+        <!-- Main Walkie Talkie Screen -->
+        <div id="main-screen" class="screen">
+            <div class="header">
+                <div class="user-info">
+                    <span id="current-user">User</span>
+                    <span id="connection-status" class="status offline">Offline</span>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Friends List -->
+                <div class="friends-section">
+                    <div class="section-header">
+                        <h2>Friends</h2>
+                        <div class="header-buttons">
+                            <button id="friend-requests-btn" class="btn small">📨</button>
+                            <button id="add-friend-btn" class="btn small">+</button>
+                        </div>
+                    </div>
+                    <div id="friends-list" class="friends-list">
+                        <!-- Friends will be added here -->
+                    </div>
+                </div>
+
+                <!-- PTT Control -->
+                <div class="ptt-section">
+                    <div id="ptt-indicator" class="ptt-indicator idle">
+                        <div class="ptt-label">PTT</div>
+                        <div class="ptt-status">Ready</div>
+                    </div>
+                </div>
+
+                <!-- Call Status -->
+                <div id="call-status" class="call-status">
+                    <!-- Call status messages -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Friend Modal -->
+        <div id="add-friend-modal" class="modal">
+            <div class="modal-content">
+                <h3>Add Friend</h3>
+                <input type="text" id="friend-username" placeholder="Friend's username" maxlength="20">
+                <div class="modal-buttons">
+                    <button id="cancel-add-friend" class="btn secondary">Cancel</button>
+                    <button id="confirm-add-friend" class="btn primary">Send Request</button>
+                </div>
+                <div id="add-friend-status" class="status"></div>
+            </div>
+        </div>
+
+        <!-- Friend Requests Modal -->
+        <div id="friend-requests-modal" class="modal">
+            <div class="modal-content">
+                <h3>Friend Requests</h3>
+                <div id="friend-requests-list" class="friend-requests-list">
+                    <!-- Friend requests will be added here -->
+                </div>
+                <div class="modal-buttons">
+                    <button id="close-friend-requests" class="btn secondary">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="crypto/key-exchange.js"></script>
+    <script src="crypto/voice-encrypt.js"></script>
+    <script src="crypto/secure-storage.js"></script>
+    <script src="walkie-talkie.js"></script>
+</body>
+</html>

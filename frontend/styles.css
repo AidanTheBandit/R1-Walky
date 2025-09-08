@@ -1,0 +1,370 @@
+/* R1-Walky Styles - Optimized for 240x282px screen */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+}
+
+body {
+    width: 240px;
+    height: 282px;
+    overflow: hidden;
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+.app {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* Screen Management */
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+}
+
+.screen.active {
+    display: flex;
+}
+
+.header {
+    background: #ff6b35;
+    padding: 8px 12px;
+    border-bottom: 2px solid #e55a2b;
+    min-height: 40px;
+}
+
+.header h1 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 1px 1px 0px #000000;
+}
+
+.content {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Buttons */
+.btn {
+    background: #ff6b35;
+    border: 2px solid #e55a2b;
+    color: #ffffff;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 0;
+    text-transform: uppercase;
+    transition: all 0.1s;
+}
+
+.btn:hover {
+    background: #e55a2b;
+    border-color: #cc4f26;
+}
+
+.btn:active {
+    background: #cc4f26;
+    border-color: #b34420;
+}
+
+.btn.primary {
+    background: #ff6b35;
+}
+
+.btn.secondary {
+    background: #666666;
+    border-color: #555555;
+}
+
+.btn.secondary:hover {
+    background: #555555;
+    border-color: #444444;
+}
+
+.btn.small {
+    padding: 4px 8px;
+    font-size: 10px;
+}
+
+/* Status */
+.status {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 0;
+    text-align: center;
+    margin-top: 8px;
+}
+
+.status.offline {
+    background: #666666;
+    color: #ffffff;
+}
+
+.status.online {
+    background: #4CAF50;
+    color: #ffffff;
+}
+
+.status.error {
+    background: #f44336;
+    color: #ffffff;
+}
+
+/* User Info */
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#current-user {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Friends Section */
+.friends-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.section-header h2 {
+    font-size: 14px;
+    color: #ff6b35;
+}
+
+.friends-list {
+    flex: 1;
+    border: 1px solid #666666;
+    background: #2a2a2a;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.friend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid #444444;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.friend-item:hover {
+    background: #3a3a3a;
+}
+
+.friend-item:last-child {
+    border-bottom: none;
+}
+
+.friend-name {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.friend-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 0;
+}
+
+.friend-status.online {
+    background: #4CAF50;
+    color: #ffffff;
+}
+
+.friend-status.offline {
+    background: #666666;
+    color: #ffffff;
+}
+
+.friend-status.calling {
+    background: #ff6b35;
+    color: #ffffff;
+    animation: pulse 1s infinite;
+}
+
+/* PTT Section */
+.ptt-section {
+    display: flex;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.ptt-indicator {
+    width: 80px;
+    height: 80px;
+    border: 4px solid #666666;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+}
+
+.ptt-indicator.idle {
+    background: #2a2a2a;
+}
+
+.ptt-indicator.talking {
+    background: #ff6b35;
+    border-color: #e55a2b;
+    animation: pulse 0.5s infinite;
+}
+
+.ptt-indicator.connecting {
+    background: #ffeb3b;
+    border-color: #e5d92b;
+    color: #000000;
+}
+
+.ptt-label {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.ptt-status {
+    font-size: 10px;
+    margin-top: 2px;
+}
+
+/* Call Status */
+.call-status {
+    min-height: 30px;
+    font-size: 10px;
+    text-align: center;
+    padding: 4px;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #2a2a2a;
+    border: 2px solid #ff6b35;
+    padding: 16px;
+    width: 200px;
+    text-align: center;
+}
+
+.modal-content h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #ff6b35;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 6px;
+    margin-bottom: 12px;
+    background: #1a1a1a;
+    border: 1px solid #666666;
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* Inputs */
+input {
+    background: #2a2a2a;
+    border: 2px solid #666666;
+    color: #ffffff;
+    padding: 8px;
+    font-size: 12px;
+    width: 100%;
+}
+
+input:focus {
+    outline: none;
+    border-color: #ff6b35;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.header-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.friend-requests-list {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.friend-request-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #666666;
+    margin-bottom: 4px;
+    background: #2a2a2a;
+}
+
+.friend-request-item .username {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.friend-request-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.friend-request-buttons .btn {
+    padding: 4px 8px;
+    font-size: 10px;
+}
