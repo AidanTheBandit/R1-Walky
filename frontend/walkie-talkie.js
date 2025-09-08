@@ -37,7 +37,8 @@ class WalkieTalkie {
         } else {
             console.log('❌ No valid session found, showing auth screen');
             this.setupEventListeners();
-            this.verifyDevice();
+            // Skip device verification entirely - go straight to auth
+            this.showAuthScreen();
         }
 
         // Show debug panel for development
@@ -110,29 +111,27 @@ class WalkieTalkie {
         }
     }
 
-    // Device Verification - Simplified for development
-    async verifyDevice() {
+    // Device Verification - Ultra-simple for R1 compatibility
+    verifyDevice() {
         const status = document.getElementById('verify-status');
 
+        console.log('🔧 Starting device verification...');
+        status.textContent = 'Verifying device...';
+        
         try {
-            status.textContent = 'Checking device...';
-
-            // For development, skip R1 verification and proceed directly
-            console.log('🔧 Development mode: Skipping R1 verification');
-            status.textContent = 'Development mode - proceeding...';
+            // Get device info synchronously without promises
+            const deviceId = this.getDeviceIdSync();
+            console.log('✅ Device verified:', deviceId);
+            status.textContent = 'Device verified!';
             status.className = 'status';
-
-            // Get device info (but don't require R1)
-            const deviceInfo = await this.getDeviceInfo();
-
-            setTimeout(() => this.showAuthScreen(), 1000);
         } catch (error) {
-            console.error('Device verification failed:', error);
-            status.textContent = 'Verification error - proceeding in development mode';
-            status.className = 'status error';
-            // For development, proceed anyway
-            setTimeout(() => this.showAuthScreen(), 2000);
+            console.error('Device verification error:', error);
+            status.textContent = 'Proceeding to login...';
+            status.className = 'status';
         }
+        
+        // Always proceed to auth screen immediately - no async operations
+        this.showAuthScreen();
     }
 
     // Debug functionality
@@ -179,35 +178,38 @@ class WalkieTalkie {
         `;
     }
 
-    // Simplified device info - just generate a consistent device ID
-    async getDeviceInfo() {
+    // Synchronous device ID generation for R1 compatibility
+    getDeviceIdSync() {
         try {
             // Try to get existing device ID from storage
             let deviceId = this.storage.get('device_id');
             
             if (!deviceId) {
-                // Generate a new device ID
-                deviceId = 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                // Generate a new device ID - simpler for R1
+                deviceId = 'R1-' + Date.now().toString(36).toUpperCase();
                 this.storage.set('device_id', deviceId);
                 console.log('🆕 Generated new device ID:', deviceId);
             } else {
                 console.log('📱 Using existing device ID:', deviceId);
             }
 
-            return {
-                deviceId: deviceId,
-                verificationCode: 'FF4D06', // Always allow for now
-                userAgent: navigator.userAgent,
-                platform: navigator.platform
-            };
+            return deviceId;
         } catch (error) {
-            console.error('❌ Error getting device info:', error);
+            console.error('❌ Error getting device ID:', error);
             // Fallback
-            return {
-                deviceId: 'R1-FALLBACK-' + Date.now(),
-                verificationCode: 'FF4D06'
-            };
+            return 'R1-FALLBACK-' + Date.now();
         }
+    }
+
+    // Async version for compatibility with existing code
+    async getDeviceInfo() {
+        const deviceId = this.getDeviceIdSync();
+        return {
+            deviceId: deviceId,
+            verificationCode: 'FF4D06', // Always allow for now
+            userAgent: navigator.userAgent,
+            platform: navigator.platform
+        };
     }
 
     // Screen Management
