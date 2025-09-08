@@ -28,6 +28,37 @@ class WalkieTalkie {
             this.setupEventListeners();
             this.verifyDevice();
         }
+
+        // Show debug panel for development
+        this.showDebugPanel();
+    }
+
+    // Helper method to make authenticated API calls
+    async apiCall(endpoint, options = {}) {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+
+        // Add user ID to headers if we have a current user
+        if (this.currentUser && this.currentUser.id) {
+            headers['X-User-ID'] = this.currentUser.id;
+        }
+
+        const response = await fetch(endpoint, {
+            ...options,
+            headers
+        });
+
+        // Handle authentication errors
+        if (response.status === 401) {
+            console.log('Authentication error - clearing session and redirecting to auth');
+            await this.clearUserSession();
+            this.showAuthScreen();
+            throw new Error('Authentication required');
+        }
+
+        return response;
     }
 
     // Device Verification
@@ -76,6 +107,31 @@ class WalkieTalkie {
         }
     }
 
+    // Debug functionality
+    showDebugPanel() {
+        const debugPanel = document.getElementById('debug-panel');
+        debugPanel.style.display = 'block';
+        this.updateDebugInfo();
+    }
+
+    updateDebugInfo() {
+        const debugInfo = document.getElementById('debug-info');
+        const deviceInfo = this.getDeviceInfo();
+
+        debugInfo.innerHTML = `
+            <div><strong>User:</strong> ${this.currentUser ? this.currentUser.username : 'None'}</div>
+            <div><strong>User ID:</strong> ${this.currentUser ? this.currentUser.id : 'None'}</div>
+            <div><strong>Device ID:</strong> ${deviceInfo.deviceId || 'Unknown'}</div>
+            <div><strong>Verification:</strong> ${deviceInfo.verificationCode || 'None'}</div>
+            <div><strong>Has Sensors:</strong> ${deviceInfo.hasAccelerometer ? 'Yes' : 'No'}</div>
+            <div><strong>Has Storage:</strong> ${deviceInfo.hasCreationStorage ? 'Yes' : 'No'}</div>
+            <div><strong>User Agent:</strong> ${navigator.userAgent.substring(0, 30)}...</div>
+            <div><strong>Platform:</strong> ${navigator.platform}</div>
+            <div><strong>Session:</strong> ${this.currentUser ? 'Active' : 'None'}</div>
+        `;
+    }
+
+    // Enhanced device info with more debugging
     async getDeviceInfo() {
         // Try to get device info from R1 hardware APIs
         try {
@@ -86,20 +142,32 @@ class WalkieTalkie {
                     deviceId: null,
                     verificationCode: null,
                     userAgent: navigator.userAgent,
-                    platform: navigator.platform
+                    platform: navigator.platform,
+                    hasAccelerometer: false,
+                    hasCreationStorage: false,
+                    hasCreationSensors: false,
+                    isDevelopment: false
                 };
 
                 // Check for R1-specific APIs or identifiers
                 if (window.creationStorage && window.creationStorage.plain) {
+                    deviceInfo.hasCreationStorage = true;
+                    console.log('✅ creationStorage.plain available');
+
                     // Try to get stored device info
                     try {
                         const storedDeviceId = await window.creationStorage.plain.getItem('device_id');
                         if (storedDeviceId) {
                             deviceInfo.deviceId = atob(storedDeviceId);
+                            console.log('📱 Stored device ID found:', deviceInfo.deviceId);
+                        } else {
+                            console.log('❌ No stored device ID');
                         }
                     } catch (e) {
-                        console.log('No stored device ID found');
+                        console.log('⚠️ Error accessing stored device ID:', e);
                     }
+                } else {
+                    console.log('❌ creationStorage.plain not available');
                 }
 
                 // Check for hardware identifier in various places
@@ -107,12 +175,19 @@ class WalkieTalkie {
                 if (navigator.userAgent.includes('R1') || navigator.platform.includes('R1')) {
                     deviceInfo.verificationCode = 'FF4D06'; // This should come from hardware
                     deviceInfo.deviceId = deviceInfo.deviceId || 'R1-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                    console.log('🤖 R1 detected in user agent/platform');
+                } else {
+                    console.log('❌ R1 not detected in user agent/platform');
                 }
 
                 // Check for device sensors (R1 specific)
                 if (window.creationSensors && window.creationSensors.accelerometer) {
                     deviceInfo.hasAccelerometer = true;
+                    deviceInfo.hasCreationSensors = true;
                     deviceInfo.verificationCode = 'FF4D06'; // Presence of creationSensors indicates R1
+                    console.log('✅ creationSensors.accelerometer available');
+                } else {
+                    console.log('❌ creationSensors.accelerometer not available');
                 }
 
                 // Check for creation storage
@@ -121,21 +196,34 @@ class WalkieTalkie {
                     if (!deviceInfo.verificationCode) {
                         deviceInfo.verificationCode = 'FF4D06'; // Presence of creationStorage indicates R1
                     }
+                    console.log('✅ creationStorage available');
+                } else {
+                    console.log('❌ creationStorage not available');
                 }
 
-                console.log('Device info detected:', deviceInfo);
+                // Check for other R1-specific APIs
+                if (window.PluginMessageHandler) {
+                    console.log('✅ PluginMessageHandler available (R1 API)');
+                } else {
+                    console.log('❌ PluginMessageHandler not available');
+                }
+
+                console.log('📊 Device info detected:', deviceInfo);
                 return deviceInfo;
             }
         } catch (error) {
-            console.error('Error getting device info:', error);
+            console.error('❌ Error getting device info:', error);
         }
 
         // Fallback for development - simulate R1 device
-        console.log('Using development fallback device info');
+        console.log('🔧 Using development fallback device info');
         return {
             deviceId: 'R1-DEV-001',
             verificationCode: 'FF4D06', // Allow development mode
-            isDevelopment: true
+            isDevelopment: true,
+            hasAccelerometer: false,
+            hasCreationStorage: false,
+            hasCreationSensors: false
         };
     }
 
@@ -152,6 +240,13 @@ class WalkieTalkie {
     }
 
     showMainScreen() {
+        // Check if we have a valid user before showing main screen
+        if (!this.currentUser || !this.currentUser.id) {
+            console.log('No valid user session - redirecting to auth');
+            this.showAuthScreen();
+            return;
+        }
+
         this.showScreen('main-screen');
         this.updateUserInfo();
         this.loadFriends();
@@ -171,9 +266,8 @@ class WalkieTalkie {
         try {
             status.textContent = 'Registering...';
 
-            const response = await fetch('/api/users', {
+            const response = await this.apiCall('/api/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     username: username,
                     deviceId: 'R1-DEV-001' // In real R1, get from hardware
@@ -279,13 +373,17 @@ class WalkieTalkie {
     // Friends Management
     async loadFriends() {
         try {
-            const response = await fetch('/api/friends');
+            const response = await this.apiCall('/api/friends');
             if (response.ok) {
                 this.friends = await response.json();
                 this.renderFriendsList();
+            } else {
+                console.error('Failed to load friends:', response.status);
+                // If it's an auth error, apiCall will handle redirecting
             }
         } catch (error) {
             console.error('Failed to load friends:', error);
+            // If it's an auth error, apiCall will handle redirecting
         }
     }
 
@@ -333,9 +431,8 @@ class WalkieTalkie {
         try {
             status.textContent = 'Sending friend request...';
 
-            const response = await fetch('/api/friends', {
+            const response = await this.apiCall('/api/friends', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ friendUsername: username })
             });
 
@@ -359,11 +456,13 @@ class WalkieTalkie {
     // Friend Requests Management
     async loadFriendRequests() {
         try {
-            const response = await fetch('/api/friends/requests');
+            const response = await this.apiCall('/api/friends/requests');
             if (response.ok) {
                 const data = await response.json();
                 this.friendRequests = data.requests || [];
                 this.renderFriendRequests();
+            } else {
+                console.error('Failed to load friend requests:', response.status);
             }
         } catch (error) {
             console.error('Failed to load friend requests:', error);
@@ -403,7 +502,7 @@ class WalkieTalkie {
 
     async acceptFriendRequest(friendshipId) {
         try {
-            const response = await fetch(`/api/friends/${friendshipId}/accept`, {
+            const response = await this.apiCall(`/api/friends/${friendshipId}/accept`, {
                 method: 'POST'
             });
 
@@ -422,7 +521,7 @@ class WalkieTalkie {
 
     async rejectFriendRequest(friendshipId) {
         try {
-            const response = await fetch(`/api/friends/${friendshipId}/reject`, {
+            const response = await this.apiCall(`/api/friends/${friendshipId}/reject`, {
                 method: 'POST'
             });
 
@@ -488,9 +587,8 @@ class WalkieTalkie {
             await this.peerConnection.setLocalDescription(offer);
 
             // Send offer to friend via signaling server
-            const response = await fetch('/api/calls/initiate', {
+            const response = await this.apiCall('/api/calls/initiate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     targetUsername: friend.username,
                     offer: offer
@@ -848,17 +946,8 @@ class WalkieTalkie {
         // Hardware events
         this.setupHardwareEvents();
 
-        // Enter key for inputs
-        document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const activeElement = document.activeElement;
-                if (activeElement.id === 'username') {
-                    this.registerUser();
-                } else if (activeElement.id === 'friend-username') {
-                    this.addFriend();
-                }
-            }
-        });
+        // Debug
+        document.getElementById('refresh-debug').addEventListener('click', () => this.updateDebugInfo());
     }
 }
 

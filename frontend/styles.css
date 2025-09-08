@@ -368,3 +368,26 @@ input:focus {
     padding: 4px 8px;
     font-size: 10px;
 }
+
+/* Debug Panel */
+.debug-panel {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #666666;
+    padding: 10px;
+    max-width: 200px;
+    font-size: 10px;
+    z-index: 1000;
+}
+
+.debug-panel h3 {
+    margin: 0 0 5px 0;
+    font-size: 12px;
+}
+
+.debug-panel div {
+    margin-bottom: 5px;
+    word-wrap: break-word;
+}

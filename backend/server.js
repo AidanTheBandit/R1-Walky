@@ -199,18 +199,11 @@ app.post('/api/users', (req, res) => {
 
 // Get current user (would use auth token in real app)
 app.get('/api/users/me', (req, res) => {
-    // For simplicity, return first user
-    db.get('SELECT * FROM users LIMIT 1', (err, row) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-        if (!row) {
-            return res.status(404).json({ error: 'No users found' });
-        }
+    getCurrentUser(req, res, (user) => {
         res.json({
-            id: row.id,
-            username: row.username,
-            deviceId: row.device_id
+            id: user.id,
+            username: user.username,
+            deviceId: user.device_id
         });
     });
 });
@@ -243,19 +236,20 @@ app.post('/api/friends', (req, res) => {
         return res.status(400).json({ error: 'Friend username required' });
     }
 
-    // For simplicity, assume current user is first user
-    db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
-        if (err || !currentUser) {
-            return res.status(500).json({ error: 'Current user not found' });
-        }
+    getCurrentUser(req, res, (currentUser) => {
+        console.log(`User ${currentUser.username} (${currentUser.device_id}) trying to add friend: ${friendUsername}`);
 
         // Find friend
-        db.get('SELECT id FROM users WHERE username = ?', [friendUsername], (err, friend) => {
+        db.get('SELECT id, username, device_id FROM users WHERE username = ?', [friendUsername], (err, friend) => {
             if (err || !friend) {
+                console.error('Friend lookup error:', err);
                 return res.status(404).json({ error: 'User not found' });
             }
 
+            console.log(`Found friend: ${friend.username} (${friend.device_id})`);
+
             if (currentUser.id === friend.id) {
+                console.log('User tried to add themselves as friend');
                 return res.status(400).json({ error: 'Cannot add yourself as friend' });
             }
 
@@ -287,6 +281,7 @@ app.post('/api/friends', (req, res) => {
                                 console.error('Database error creating friendship:', err);
                                 return res.status(500).json({ error: 'Database error' });
                             }
+                            console.log(`Friend request created: ${currentUser.username} -> ${friend.username}`);
                             res.json({
                                 success: true,
                                 friendshipId,
@@ -302,11 +297,8 @@ app.post('/api/friends', (req, res) => {
 
 // Get friends list (only accepted friendships)
 app.get('/api/friends', (req, res) => {
-    // For simplicity, assume current user is first user
-    db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
-        if (err || !currentUser) {
-            return res.status(500).json({ error: 'Current user not found' });
-        }
+    getCurrentUser(req, res, (currentUser) => {
+        console.log(`Getting friends for user: ${currentUser.username} (${currentUser.device_id})`);
 
         db.all(`
             SELECT u.username, u.id, f.status
@@ -318,9 +310,11 @@ app.get('/api/friends', (req, res) => {
             WHERE u.id != ? AND f.status = 'accepted'
         `, [currentUser.id, currentUser.id, currentUser.id], (err, rows) => {
             if (err) {
+                console.error('Database error getting friends:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
 
+            console.log(`Found ${rows.length} friends for ${currentUser.username}`);
             // For simplicity, mark all as offline
             const friends = rows.map(row => ({
                 id: row.id,
@@ -335,11 +329,8 @@ app.get('/api/friends', (req, res) => {
 
 // Get pending friend requests
 app.get('/api/friends/requests', (req, res) => {
-    // For simplicity, assume current user is first user
-    db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
-        if (err || !currentUser) {
-            return res.status(500).json({ error: 'Current user not found' });
-        }
+    getCurrentUser(req, res, (currentUser) => {
+        console.log(`Getting friend requests for user: ${currentUser.username} (${currentUser.device_id})`);
 
         db.all(`
             SELECT u.username, u.id, f.id as friendshipId
@@ -348,9 +339,11 @@ app.get('/api/friends/requests', (req, res) => {
             WHERE f.friend_id = ? AND f.status = 'pending'
         `, [currentUser.id], (err, rows) => {
             if (err) {
+                console.error('Database error getting friend requests:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
 
+            console.log(`Found ${rows.length} friend requests for ${currentUser.username}`);
             res.json({ requests: rows });
         });
     });
@@ -402,16 +395,13 @@ app.post('/api/calls/initiate', (req, res) => {
         return res.status(400).json({ error: 'Target username and offer required' });
     }
 
-    // For simplicity, assume current user is first user
-    // In a real app, you'd get this from authentication
-    db.get('SELECT id FROM users LIMIT 1', (err, currentUser) => {
-        if (err || !currentUser) {
-            return res.status(500).json({ error: 'Current user not found' });
-        }
+    getCurrentUser(req, res, (currentUser) => {
+        console.log(`User ${currentUser.username} initiating call to: ${targetUsername}`);
 
         // Find target user
         db.get('SELECT id FROM users WHERE username = ?', [targetUsername], (err, targetUser) => {
             if (err || !targetUser) {
+                console.error('Target user not found:', targetUsername);
                 return res.status(404).json({ error: 'User not found' });
             }
 
@@ -427,10 +417,13 @@ app.post('/api/calls/initiate', (req, res) => {
                         return res.status(500).json({ error: 'Database error' });
                     }
 
+                    console.log(`Call initiated: ${currentUser.username} -> ${targetUsername} (ID: ${callId})`);
+
                     // Emit to target user via socket
                     io.to(targetUser.id).emit('incoming-call', {
                         callId,
                         caller: currentUser.id,
+                        callerUsername: currentUser.username,
                         offer
                     });
 
@@ -442,9 +435,7 @@ app.post('/api/calls/initiate', (req, res) => {
             );
         });
     });
-});
-
-// WebSocket connection handling
+});// WebSocket connection handling
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
