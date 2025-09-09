@@ -669,14 +669,92 @@ function setupRoutes() {
             );
         });
 
-        // Handle ICE candidates
-        socket.on('ice-candidate', (data) => {
-            const { callId, candidate, targetId } = data;
-            console.log('ICE candidate received for call:', callId);
-            io.to(targetId).emit('ice-candidate', {
-                callId,
-                candidate
-            });
+        // Handle audio data streaming (server-mediated approach)
+        socket.on('audio-data', (data) => {
+            const { callId, audioBlob, targetId } = data;
+
+            // Verify the call exists and user is part of it
+            db.get(
+                'SELECT * FROM active_calls WHERE id = ? AND (caller_id = ? OR callee_id = ?)',
+                [callId, socket.userId, socket.userId],
+                (err, call) => {
+                    if (!err && call) {
+                        // Relay audio to the other party
+                        const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
+
+                        // Send audio data to target user
+                        io.to(otherPartyId).emit('audio-data', {
+                            callId,
+                            audioBlob,
+                            fromUserId: socket.userId
+                        });
+
+                        console.log(`🔊 Relayed audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
+                    } else {
+                        console.error('❌ Invalid call for audio data:', callId);
+                    }
+                }
+            );
+        });
+
+        // Handle start audio streaming
+        socket.on('start-audio-stream', (data) => {
+            const { callId } = data;
+
+            db.run(
+                'UPDATE active_calls SET audio_stream_active = 1 WHERE id = ? AND (caller_id = ? OR callee_id = ?)',
+                [callId, socket.userId, socket.userId],
+                function(err) {
+                    if (!err && this.changes > 0) {
+                        console.log(`🎤 Audio streaming started for call ${callId} by user ${socket.userId}`);
+
+                        // Notify the other party that audio streaming has started
+                        db.get(
+                            'SELECT caller_id, callee_id FROM active_calls WHERE id = ?',
+                            [callId],
+                            (err, call) => {
+                                if (!err && call) {
+                                    const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
+                                    io.to(otherPartyId).emit('audio-stream-started', {
+                                        callId,
+                                        fromUserId: socket.userId
+                                    });
+                                }
+                            }
+                        );
+                    }
+                }
+            );
+        });
+
+        // Handle stop audio streaming
+        socket.on('stop-audio-stream', (data) => {
+            const { callId } = data;
+
+            db.run(
+                'UPDATE active_calls SET audio_stream_active = 0 WHERE id = ? AND (caller_id = ? OR callee_id = ?)',
+                [callId, socket.userId, socket.userId],
+                function(err) {
+                    if (!err && this.changes > 0) {
+                        console.log(`🔇 Audio streaming stopped for call ${callId} by user ${socket.userId}`);
+
+                        // Notify the other party that audio streaming has stopped
+                        db.get(
+                            'SELECT caller_id, callee_id FROM active_calls WHERE id = ?',
+                            [callId],
+                            (err, call) => {
+                                if (!err && call) {
+                                    const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
+                                    io.to(otherPartyId).emit('audio-stream-stopped', {
+                                        callId,
+                                        fromUserId: socket.userId
+                                    });
+                                }
+                            }
+                        );
+                    }
+                }
+            );
         });
         
         // Handle call end

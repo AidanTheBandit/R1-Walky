@@ -93,6 +93,12 @@
                 this.audioContext = null;
                 this.gainNode = null;
                 this.volumeLevel = 2.0; // Default 200% volume boost
+                this.audioChunks = [];
+                this.isRecording = false;
+                this.mediaRecorder = null;
+                this.audioQueue = [];
+                this.isPlayingAudio = false;
+                this.useServerMediated = true; // Enable server-mediated audio by default
                 this.init();
             }
 
@@ -298,56 +304,30 @@
                     this.updateStatus('Call already in progress');
                     return;
                 }
-                
+
                 try {
                     this.updateStatus(`Calling ${username}...`);
-                    
-                    // Get user media first with more permissive settings
+
+                    // Get user media for recording (server-mediated approach)
                     this.localStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: false,
                             noiseSuppression: false,
                             autoGainControl: false,
-                            sampleRate: 48000,
+                            sampleRate: 16000, // Lower sample rate for better compression
                             channelCount: 1
                         }
                     });
-                    
-                    console.log('Got local stream with tracks:', this.localStream.getAudioTracks().length);
-                    this.localStream.getAudioTracks().forEach(track => {
-                        console.log('Local track details:', {
-                            kind: track.kind,
-                            label: track.label,
-                            enabled: track.enabled,
-                            readyState: track.readyState,
-                            settings: track.getSettings()
-                        });
-                    });
-                    
+
+                    console.log('🎤 Got microphone for server-mediated call:', this.localStream.getAudioTracks().length, 'tracks');
+
                     // Initially disable audio tracks (PTT mode)
                     this.localStream.getAudioTracks().forEach(track => {
                         track.enabled = false;
-                        console.log('Initially disabled track:', track.label);
+                        console.log('Initially disabled track for server-mediated call:', track.label);
                     });
-                    
-                    // Create peer connection
-                    this.setupPeerConnection();
-                    
-                    // Add local stream
-                    this.localStream.getTracks().forEach(track => {
-                        this.peerConnection.addTrack(track, this.localStream);
-                    });
-                    
-                    // Create offer
-                    const offer = await this.peerConnection.createOffer({
-                        offerToReceiveAudio: true,
-                        offerToReceiveVideo: false
-                    });
-                    console.log('Created offer:', offer);
-                    await this.peerConnection.setLocalDescription(offer);
-                    console.log('Set local description (offer)');
-                    
-                    // Send call initiation to server
+
+                    // Send call initiation to server (server-mediated)
                     const response = await fetch('/api/calls/initiate', {
                         method: 'POST',
                         headers: {
@@ -356,10 +336,10 @@
                         },
                         body: JSON.stringify({
                             targetUsername: username,
-                            offer: offer
+                            offer: { type: 'server-mediated' } // Simplified offer for server-mediated
                         })
                     });
-                    
+
                     if (response.ok) {
                         const callData = await response.json();
                         this.currentCall = {
@@ -367,102 +347,64 @@
                             status: 'calling',
                             targetUsername: username,
                             targetId: callData.targetId,
-                            isInitiator: true
+                            isInitiator: true,
+                            mode: 'server-mediated'
                         };
-                        this.updateStatus(`Calling ${username}...`);
+                        this.updateStatus(`Calling ${username} (server-mediated)...`);
+                        console.log('📞 Server-mediated call initiated:', callData.callId);
                     } else {
                         throw new Error('Failed to initiate call');
                     }
                 } catch (error) {
-                    console.error('Call error:', error);
+                    console.error('❌ Call error:', error);
                     this.updateStatus('Call failed');
                     this.endCall();
                 }
             }
 
             async startTalk() {
-                // Get microphone if we don't have it yet
-                if (!this.localStream) {
-                    try {
-                        this.localStream = await navigator.mediaDevices.getUserMedia({
-                            audio: {
-                                echoCancellation: false,
-                                noiseSuppression: false,
-                                autoGainControl: false,
-                                sampleRate: 48000,
-                                channelCount: 1
-                            }
-                        });
-                        console.log('Got microphone for PTT:', this.localStream.getAudioTracks().length, 'tracks');
-                    } catch (error) {
-                        console.error('Failed to get microphone:', error);
-                        this.updateStatus('Microphone access denied');
-                        return;
-                    }
-                }
-                
-                if (this.isTransmitting) return;
-                
+                if (!this.currentCall || this.isRecording) return;
+
                 const btn = document.getElementById('ptt-button');
                 btn.textContent = 'Talking...';
                 btn.classList.add('active');
-                this.updateStatus('Transmitting...');
-                
-                // Enable microphone audio tracks
-                this.localStream.getAudioTracks().forEach(track => {
-                    track.enabled = true;
-                    console.log('Enabled audio track:', track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                this.updateStatus('Transmitting (server-mediated)...');
+
+                // Start recording audio for server-mediated streaming
+                this.startAudioRecording();
+
+                // Notify server that we're starting audio stream
+                this.socket.emit('start-audio-stream', {
+                    callId: this.currentCall.id
                 });
-                
-                // Check WebRTC connection and force connected state if needed
-                if (this.peerConnection && this.currentCall) {
-                    // Force connected state if we have peer connection and remote stream
-                    if (this.remoteStream && this.currentCall.status !== 'connected') {
-                        console.log('Forcing call to connected state for PTT');
-                        this.currentCall.status = 'connected';
-                        this.showEndCallButton();
-                    }
-                    
-                    console.log('=== PTT Audio Debug ===');
-                    console.log('Call status:', this.currentCall.status);
-                    console.log('Has remote stream:', !!this.remoteStream);
-                    console.log('Peer connection state:', this.peerConnection.connectionState);
-                    console.log('ICE connection state:', this.peerConnection.iceConnectionState);
-                    
-                    this.peerConnection.getSenders().forEach((sender, i) => {
-                        if (sender.track && sender.track.kind === 'audio') {
-                            console.log(`Audio sender ${i}:`, {
-                                label: sender.track.label,
-                                enabled: sender.track.enabled,
-                                readyState: sender.track.readyState,
-                                muted: sender.track.muted
-                            });
-                        }
-                    });
-                } else {
-                    console.log('PTT working but no peer connection or call');
+
+                // Force call to connected state for server-mediated
+                if (this.currentCall.status !== 'connected') {
+                    this.currentCall.status = 'connected';
+                    this.showEndCallButton();
+                    this.updateStatus('Connected (server-mediated) - ready to talk');
                 }
-                
-                this.isTransmitting = true;
-                console.log('PTT Start - microphone enabled, tracks:', this.localStream.getAudioTracks().length);
+
+                console.log('🎤 Started server-mediated audio recording');
             }
 
             stopTalk() {
-                if (!this.localStream || !this.isTransmitting) return;
-                
+                if (!this.currentCall || !this.isRecording) return;
+
                 const btn = document.getElementById('ptt-button');
                 btn.textContent = 'HOLD\nTO TALK';
                 btn.classList.remove('active');
-                this.updateStatus(this.currentCall && this.currentCall.status === 'connected' ? 'Connected' : 'Ready');
-                
-                // Disable microphone audio tracks to stop transmission
-                this.localStream.getAudioTracks().forEach(track => {
-                    track.enabled = false;
-                    console.log('Disabled audio track:', track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                this.updateStatus('Connected (server-mediated)');
+
+                // Stop recording and send final audio chunk
+                this.stopAudioRecording();
+
+                // Notify server that we're stopping audio stream
+                this.socket.emit('stop-audio-stream', {
+                    callId: this.currentCall.id
                 });
-                
-                this.isTransmitting = false;
-                console.log('PTT Stop - microphone disabled, tracks:', this.localStream.getAudioTracks().length);
+
+                console.log('🔇 Stopped server-mediated audio recording');
             }
 
             connectSocket() {
@@ -490,20 +432,33 @@
                     this.loadFriends(); // Refresh friends list
                 });
                 
-                // Call events
+                // Call events (server-mediated)
                 this.socket.on('incoming-call', (data) => {
-                    console.log('Incoming call:', data);
+                    console.log('📞 Incoming server-mediated call:', data);
                     this.handleIncomingCall(data);
                 });
-                
+
                 this.socket.on('call-answered', (data) => {
-                    console.log('Call answered:', data);
+                    console.log('✅ Call answered:', data);
                     this.handleCallAnswered(data);
                 });
-                
+
+                // Server-mediated audio events
+                this.socket.on('audio-data', (data) => {
+                    this.handleIncomingAudio(data);
+                });
+
+                this.socket.on('audio-stream-started', (data) => {
+                    this.handleAudioStreamStarted(data);
+                });
+
+                this.socket.on('audio-stream-stopped', (data) => {
+                    this.handleAudioStreamStopped(data);
+                });
+
+                // Legacy WebRTC events (for backward compatibility)
                 this.socket.on('ice-candidate', (data) => {
-                    console.log('ICE candidate:', data);
-                    this.handleIceCandidate(data);
+                    console.log('⚠️ Received ICE candidate but using server-mediated mode');
                 });
                 
                 this.socket.on('call-ended', (data) => {
@@ -522,38 +477,153 @@
                 });
             }
 
-            setupVolumeBoost(stream) {
+            // Audio recording for server-mediated streaming
+            startAudioRecording() {
+                if (!this.localStream) return;
+
+                this.audioChunks = [];
+
                 try {
-                    // Create audio context if it doesn't exist
-                    if (!this.audioContext) {
-                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    }
-                    
-                    // Create gain node for volume boost
-                    if (!this.gainNode) {
-                        this.gainNode = this.audioContext.createGain();
-                        this.gainNode.gain.value = this.volumeLevel;
-                        
-                        // Create source from the stream
-                        const source = this.audioContext.createMediaStreamSource(stream);
-                        
-                        // Connect: source -> gain -> destination
-                        source.connect(this.gainNode);
-                        this.gainNode.connect(this.audioContext.destination);
-                        
-                        console.log(`🔊 Volume boost setup complete - ${Math.round(this.volumeLevel * 100)}% amplification`);
-                    }
+                    this.mediaRecorder = new MediaRecorder(this.localStream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                            // Send audio chunk to server immediately
+                            this.sendAudioChunk(event.data);
+                        }
+                    };
+
+                    this.mediaRecorder.onstop = () => {
+                        // Send any remaining audio data
+                        if (this.audioChunks.length > 0) {
+                            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                            this.sendAudioChunk(audioBlob);
+                            this.audioChunks = [];
+                        }
+                    };
+
+                    // Start recording with small time slices for real-time streaming
+                    this.mediaRecorder.start(100); // 100ms chunks
+                    this.isRecording = true;
+                    console.log('✅ Server-mediated audio recording started');
+
                 } catch (error) {
-                    console.error('❌ Error setting up volume boost:', error);
-                    // Fallback: just use the HTML audio element volume
-                    if (this.remoteAudio) {
-                        this.remoteAudio.volume = Math.min(this.volumeLevel, 1.0);
-                    }
+                    console.error('❌ Error starting audio recording:', error);
                 }
             }
 
-            updateStatus(message) {
-                document.getElementById('call-status').textContent = message;
+            stopAudioRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    console.log('✅ Server-mediated audio recording stopped');
+                }
+            }
+
+            // Send audio chunk to server
+            sendAudioChunk(audioBlob) {
+                if (!this.currentCall) return;
+
+                // Convert blob to base64 for transmission
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64Audio = reader.result;
+
+                    this.socket.emit('audio-data', {
+                        callId: this.currentCall.id,
+                        audioBlob: base64Audio,
+                        targetId: this.currentCall.targetId
+                    });
+                };
+                reader.readAsDataURL(audioBlob);
+            }
+
+            // Handle incoming audio data from server (server-mediated)
+            handleIncomingAudio(data) {
+                if (!this.currentCall || data.callId !== this.currentCall.id) return;
+
+                try {
+                    // Convert base64 back to blob
+                    const audioBlob = this.base64ToBlob(data.audioBlob);
+
+                    // Add to audio queue for sequential playback
+                    this.audioQueue.push(audioBlob);
+
+                    // Start playing if not already playing
+                    if (!this.isPlayingAudio) {
+                        this.playNextAudioChunk();
+                    }
+
+                    console.log('🔊 Received audio chunk from server');
+                } catch (error) {
+                    console.error('❌ Error handling incoming audio:', error);
+                }
+            }
+
+            // Convert base64 to blob
+            base64ToBlob(base64Data) {
+                const arr = base64Data.split(',');
+                const mime = arr[0].match(/:(.*?);/)[1];
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+
+                return new Blob([u8arr], { type: mime });
+            }
+
+            // Play next audio chunk in queue
+            async playNextAudioChunk() {
+                if (this.audioQueue.length === 0) {
+                    this.isPlayingAudio = false;
+                    return;
+                }
+
+                this.isPlayingAudio = true;
+                const audioBlob = this.audioQueue.shift();
+
+                try {
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+
+                    // Set volume boost
+                    audio.volume = Math.min(this.volumeLevel, 1.0);
+
+                    // Play immediately
+                    await audio.play();
+
+                    // Clean up the URL after playing
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        // Play next chunk
+                        this.playNextAudioChunk();
+                    };
+
+                    console.log('▶️ Playing audio chunk with volume boost');
+                } catch (error) {
+                    console.error('❌ Error playing audio chunk:', error);
+                    // Continue with next chunk
+                    this.playNextAudioChunk();
+                }
+            }
+
+            // Handle audio stream started/stopped events
+            handleAudioStreamStarted(data) {
+                if (!this.currentCall || data.callId !== this.currentCall.id) return;
+                console.log(`🎤 Audio stream started by ${data.fromUserId}`);
+                this.updateStatus(`Receiving audio from ${this.currentCall.targetUsername || 'peer'}`);
+            }
+
+            handleAudioStreamStopped(data) {
+                if (!this.currentCall || data.callId !== this.currentCall.id) return;
+                console.log(`🔇 Audio stream stopped by ${data.fromUserId}`);
+                this.updateStatus(`Connected to ${this.currentCall.targetUsername || 'peer'} (server-mediated)`);
             }
 
             async loadFriendRequests() {
@@ -763,84 +833,47 @@
             
             async answerCall() {
                 if (!this.currentCall || this.currentCall.status !== 'incoming') return;
-                
+
                 try {
                     // Hide incoming call UI
                     document.getElementById('incoming-call').classList.remove('active');
                     this.ringtone.pause();
                     this.ringtone.currentTime = 0;
-                    
-                    // Get user media with same settings as caller
+
+                    // Get user media for recording (server-mediated approach)
                     this.localStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: false,
                             noiseSuppression: false,
                             autoGainControl: false,
-                            sampleRate: 48000,
+                            sampleRate: 16000, // Lower sample rate for better compression
                             channelCount: 1
                         }
                     });
-                    
-                    console.log('Got local stream for answer with tracks:', this.localStream.getAudioTracks().length);
-                    this.localStream.getAudioTracks().forEach(track => {
-                        console.log('Answer track details:', {
-                            kind: track.kind,
-                            label: track.label,
-                            enabled: track.enabled,
-                            readyState: track.readyState,
-                            settings: track.getSettings()
-                        });
-                    });
-                    
+
+                    console.log('🎤 Got microphone for server-mediated answer:', this.localStream.getAudioTracks().length, 'tracks');
+
                     // Initially disable audio tracks (PTT mode)
                     this.localStream.getAudioTracks().forEach(track => {
                         track.enabled = false;
-                        console.log('Initially disabled track for answer:', track.label);
+                        console.log('Initially disabled track for server-mediated answer:', track.label);
                     });
-                    
-                    // Setup peer connection
-                    this.setupPeerConnection();
-                    
-                    // Add local stream
-                    this.localStream.getTracks().forEach(track => {
-                        this.peerConnection.addTrack(track, this.localStream);
-                    });
-                    
-                    // Set remote description
-                    console.log('Setting remote description (offer):', this.currentCall.offer);
-                    await this.peerConnection.setRemoteDescription(this.currentCall.offer);
-                    console.log('Remote description set successfully');
-                    
-                    // Process any queued ICE candidates
-                    if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
-                        console.log('Processing', this.queuedIceCandidates.length, 'queued ICE candidates');
-                        for (const candidate of this.queuedIceCandidates) {
-                            try {
-                                await this.peerConnection.addIceCandidate(candidate);
-                                console.log('Added queued ICE candidate');
-                            } catch (error) {
-                                console.error('Error adding queued ICE candidate:', error);
-                            }
-                        }
-                        this.queuedIceCandidates = [];
-                    }
-                    
-                    // Create answer
-                    const answer = await this.peerConnection.createAnswer();
-                    console.log('Created answer:', answer);
-                    await this.peerConnection.setLocalDescription(answer);
-                    console.log('Set local description (answer)');
-                    
-                    // Send answer via socket
+
+                    // Send answer via socket (server-mediated)
                     this.socket.emit('answer-call', {
                         callId: this.currentCall.id,
-                        answer: answer
+                        answer: { type: 'server-mediated-accepted' }
                     });
-                    
-                    // Don't set status here, let ontrack handler do it
-                    this.updateStatus(`Connecting to ${this.currentCall.callerUsername}...`);
+
+                    // Set call to connected state
+                    this.currentCall.status = 'connected';
+                    this.currentCall.mode = 'server-mediated';
+                    this.showEndCallButton();
+                    this.updateStatus(`Connected to ${this.currentCall.callerUsername} (server-mediated)`);
+
+                    console.log('✅ Server-mediated call answered:', this.currentCall.id);
                 } catch (error) {
-                    console.error('Answer call error:', error);
+                    console.error('❌ Answer call error:', error);
                     this.rejectCall();
                 }
             }
@@ -860,31 +893,14 @@
                     console.log('Ignoring call answer - wrong call ID');
                     return;
                 }
-                
-                try {
-                    console.log('Setting remote description from answer:', data.answer);
-                    await this.peerConnection.setRemoteDescription(data.answer);
-                    console.log('Remote description set successfully');
-                    
-                    // Process any queued ICE candidates
-                    if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
-                        console.log('Processing', this.queuedIceCandidates.length, 'queued ICE candidates');
-                        for (const candidate of this.queuedIceCandidates) {
-                            try {
-                                await this.peerConnection.addIceCandidate(candidate);
-                                console.log('Added queued ICE candidate');
-                            } catch (error) {
-                                console.error('Error adding queued ICE candidate:', error);
-                            }
-                        }
-                        this.queuedIceCandidates = [];
-                    }
-                    
-                    this.updateStatus('Call connecting...');
-                } catch (error) {
-                    console.error('Handle call answered error:', error);
-                    this.endCall();
-                }
+
+                // For server-mediated calls, just set to connected state
+                this.currentCall.status = 'connected';
+                this.currentCall.mode = 'server-mediated';
+                this.showEndCallButton();
+                this.updateStatus(`Connected to ${this.currentCall.targetUsername} (server-mediated)`);
+
+                console.log('✅ Server-mediated call connected:', data.callId);
             }
             
             async handleIceCandidate(data) {
@@ -913,41 +929,42 @@
             }
             
             endCall() {
+                // Stop recording if active
+                if (this.isRecording) {
+                    this.stopAudioRecording();
+                }
+
                 // Notify other party if call is active
                 if (this.currentCall && this.socket) {
                     this.socket.emit('end-call', {
                         callId: this.currentCall.id
                     });
                 }
-                
+
                 // Stop ringtone
                 if (this.ringtone) {
                     this.ringtone.pause();
                     this.ringtone.currentTime = 0;
                 }
-                
-                // Close peer connection
-                if (this.peerConnection) {
-                    this.peerConnection.close();
-                    this.peerConnection = null;
-                }
-                
+
                 // Stop local stream
                 if (this.localStream) {
                     this.localStream.getTracks().forEach(track => track.stop());
                     this.localStream = null;
                 }
-                
+
                 // Reset call state
                 this.currentCall = null;
                 this.remoteStream = null;
-                this.isTransmitting = false;
-                
+                this.isRecording = false;
+                this.audioQueue = [];
+                this.isPlayingAudio = false;
+
                 // Clear remote audio
                 if (this.remoteAudio) {
                     this.remoteAudio.srcObject = null;
                 }
-                
+
                 // Clean up audio context
                 if (this.audioContext && this.audioContext.state !== 'closed') {
                     this.audioContext.close().then(() => {
@@ -956,22 +973,22 @@
                         console.log('🔊 Audio context cleaned up');
                     });
                 }
-                
+
                 // Hide incoming call UI
                 document.getElementById('incoming-call').classList.remove('active');
-                
+
                 // Reset PTT button
                 const btn = document.getElementById('ptt-button');
                 if (btn) {
                     btn.innerHTML = '<div>HOLD</div><div>TO TALK</div>';
                     btn.classList.remove('active');
                 }
-                
+
                 // Hide end call button
                 this.hideEndCallButton();
-                
+
                 this.updateStatus('Call ended');
-                setTimeout(() => this.updateStatus('Ready'), 2000);
+                setTimeout(() => this.updateStatus('Ready (server-mediated)'), 2000);
             }
 
             showEndCallButton() {
