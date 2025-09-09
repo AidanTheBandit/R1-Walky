@@ -11,8 +11,17 @@ class AudioHandler {
         this.app.audioChunks = [];
 
         try {
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                mimeType = 'audio/ogg;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            }
+
             this.app.mediaRecorder = new MediaRecorder(this.app.localStream, {
-                mimeType: 'audio/webm;codecs=opus'
+                mimeType: mimeType
             });
 
             this.app.mediaRecorder.ondataavailable = (event) => {
@@ -26,7 +35,7 @@ class AudioHandler {
             this.app.mediaRecorder.onstop = () => {
                 // Send any remaining audio data
                 if (this.app.audioChunks.length > 0) {
-                    const audioBlob = new Blob(this.app.audioChunks, { type: 'audio/webm' });
+                    const audioBlob = new Blob(this.app.audioChunks, { type: mimeType });
                     this.sendAudioChunk(audioBlob);
                     this.app.audioChunks = [];
                 }
@@ -190,12 +199,19 @@ function handleIncomingAudio(app, data) {
         // Convert base64 back to blob
         const audioBlob = base64ToBlob(data.audioBlob);
 
-        // Add to audio queue for sequential playback
-        app.audioQueue.push(audioBlob);
+        // Add to audio buffer
+        app.audioBuffer.push(audioBlob);
 
-        // Start playing if not already playing
-        if (!app.isPlayingAudio) {
-            playNextAudioChunk(app);
+        // If we have enough chunks, combine and add to queue
+        if (app.audioBuffer.length >= 3) {
+            const combinedBlob = new Blob(app.audioBuffer, { type: app.audioBuffer[0].type });
+            app.audioQueue.push(combinedBlob);
+            app.audioBuffer = []; // Clear buffer
+
+            // Start playing if not already playing
+            if (!app.isPlayingAudio) {
+                playNextAudioChunk(app);
+            }
         }
 
         console.log('🔊 Received audio chunk from server');

@@ -10,7 +10,7 @@ class SimpleWalky {
         this.remoteStream = null;
         this.ringtone = null;
         this.remoteAudio = null;
-        this.audioContext = null;
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.gainNode = null;
         this.volumeLevel = 2.0; // Default 200% volume boost
         this.audioChunks = [];
@@ -18,6 +18,7 @@ class SimpleWalky {
         this.mediaRecorder = null;
         this.audioQueue = [];
         this.isPlayingAudio = false;
+        this.audioBuffer = []; // Buffer to accumulate chunks
         this.useServerMediated = true; // Enable server-mediated audio by default
         this.init();
     }
