@@ -212,6 +212,51 @@ class WalkieTalkie {
         };
     }
 
+    // Get ICE servers configuration (with TURN fallback)
+    async getIceServers() {
+        try {
+            // Try to get fresh TURN server config from backend
+            const response = await fetch('/api/turn-servers');
+            if (response.ok) {
+                const config = await response.json();
+                console.log('🔄 Using dynamic TURN server configuration');
+                return config.iceServers;
+            }
+        } catch (error) {
+            console.log('⚠️ Could not fetch dynamic TURN config, using fallback');
+        }
+
+        // Fallback to static configuration
+        return [
+            // STUN servers for direct P2P connection
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            // TURN servers for relay when P2P fails
+            {
+                urls: 'turn:turn.bistri.com:80',
+                username: 'homeo',
+                credential: 'homeo'
+            },
+            {
+                urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn1.xirsys.com:443?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            // Additional public TURN servers
+            {
+                urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
+                username: 'webrtc@live.com',
+                credential: 'muazkh'
+            }
+        ];
+    }
+
     // Screen Management
     showScreen(screenId) {
         document.querySelectorAll('.screen').forEach(screen => {
@@ -599,12 +644,10 @@ class WalkieTalkie {
                 }
             });
 
-            // Create peer connection
+            // Create peer connection with TURN servers for relay fallback
+            const iceServers = await this.getIceServers();
             this.peerConnection = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
+                iceServers: iceServers
             });
 
             // Set up event handlers
@@ -656,6 +699,15 @@ class WalkieTalkie {
         // Handle ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate && this.currentCall) {
+                // Log ICE candidate type for debugging
+                if (event.candidate.type === 'relay') {
+                    console.log('🔄 Using TURN relay for connection');
+                } else if (event.candidate.type === 'srflx') {
+                    console.log('🌐 Using STUN server reflection');
+                } else if (event.candidate.type === 'host') {
+                    console.log('🏠 Using direct host connection');
+                }
+
                 // Send ICE candidate to peer
                 this.sendSignalingMessage('ice-candidate', {
                     callId: this.currentCall.id,
@@ -668,14 +720,40 @@ class WalkieTalkie {
         // Handle connection state changes
         this.peerConnection.onconnectionstatechange = () => {
             console.log('Connection state:', this.peerConnection.connectionState);
+
             if (this.peerConnection.connectionState === 'connected') {
                 this.updateCallStatus(`Connected to ${this.currentCall.friend.username}`);
                 this.updatePTTStatus('ready');
                 this.setFriendStatus(this.currentCall.friend.username, 'online');
+
+                // Check if we're using a relay (TURN server)
+                const stats = this.peerConnection.getStats();
+                stats.then(report => {
+                    let usingRelay = false;
+                    report.forEach(stat => {
+                        if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
+                            if (stat.remoteCandidateId) {
+                                const remoteCandidate = report.get(stat.remoteCandidateId);
+                                if (remoteCandidate && remoteCandidate.candidateType === 'relay') {
+                                    usingRelay = true;
+                                }
+                            }
+                        }
+                    });
+                    if (usingRelay) {
+                        console.log('🔄 Call connected via TURN relay server');
+                        this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (relay)`);
+                    } else {
+                        console.log('🌐 Call connected via direct P2P');
+                        this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (direct)`);
+                    }
+                });
             } else if (this.peerConnection.connectionState === 'disconnected' ||
                        this.peerConnection.connectionState === 'failed') {
                 this.updateCallStatus('Call disconnected');
                 this.endCall();
+            } else if (this.peerConnection.connectionState === 'connecting') {
+                this.updateCallStatus('Connecting...');
             }
         };
 
@@ -760,12 +838,10 @@ class WalkieTalkie {
                 }
             });
 
-            // Create peer connection
+            // Create peer connection with TURN servers for relay fallback
+            const iceServers = await this.getIceServers();
             this.peerConnection = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
+                iceServers: iceServers
             });
 
             // Set up event handlers

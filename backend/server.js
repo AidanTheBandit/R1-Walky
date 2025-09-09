@@ -108,6 +108,44 @@ function setupRoutes() {
         res.json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
+    // Get TURN server configuration
+    app.get('/api/turn-servers', (req, res) => {
+        // Return TURN server configuration for WebRTC relay fallback
+        const turnServers = [
+            {
+                urls: 'turn:turn.bistri.com:80',
+                username: 'homeo',
+                credential: 'homeo'
+            },
+            {
+                urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn1.xirsys.com:443?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
+                username: 'webrtc@live.com',
+                credential: 'muazkh'
+            }
+        ];
+
+        res.json({
+            iceServers: [
+                // STUN servers
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                // TURN servers
+                ...turnServers
+            ]
+        });
+    });
+
     // Device verification (no auth required)
     app.post('/api/auth/verify-device', (req, res) => {
         const { deviceId, verificationCode } = req.body;
