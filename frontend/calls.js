@@ -180,5 +180,4 @@ class CallsHandler {
     }
 }
 
-// Create global calls handler instance
-const callsHandler = new CallsHandler(app);
+// Handler will be instantiated in app.js

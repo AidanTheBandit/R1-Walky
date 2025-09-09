@@ -144,15 +144,125 @@ class AudioHandler {
     handleAudioStreamStarted(data) {
         if (!this.app.currentCall || data.callId !== this.app.currentCall.id) return;
         console.log(`🎤 Audio stream started by ${data.fromUserId}`);
-        utils.updateStatus(`Receiving audio from ${this.app.currentCall.targetUsername || 'peer'}`);
+        this.app.updateStatus(`Receiving audio from ${this.app.currentCall.targetUsername || 'peer'}`);
     }
 
     handleAudioStreamStopped(data) {
         if (!this.app.currentCall || data.callId !== this.app.currentCall.id) return;
         console.log(`🔇 Audio stream stopped by ${data.fromUserId}`);
-        utils.updateStatus(`Connected to ${this.app.currentCall.targetUsername || 'peer'} (server-mediated)`);
+        this.app.updateStatus(`Connected to ${this.app.currentCall.targetUsername || 'peer'} (server-mediated)`);
     }
 }
 
-// Create global audio handler instance
-const audioHandler = new AudioHandler(app);
+// Handler will be instantiated in app.js
+
+function stopAudioRecording(app) {
+    if (app.mediaRecorder && app.mediaRecorder.state !== 'inactive') {
+        app.mediaRecorder.stop();
+        app.isRecording = false;
+        console.log('✅ Server-mediated audio recording stopped');
+    }
+}
+
+// Send audio chunk to server
+function sendAudioChunk(app, audioBlob) {
+    if (!app.currentCall) return;
+
+    // Convert blob to base64 for transmission
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const base64Audio = reader.result;
+
+        app.socket.emit('audio-data', {
+            callId: app.currentCall.id,
+            audioBlob: base64Audio,
+            targetId: app.currentCall.targetId
+        });
+    };
+    reader.readAsDataURL(audioBlob);
+}
+
+// Handle incoming audio data from server (server-mediated)
+function handleIncomingAudio(app, data) {
+    if (!app.currentCall || data.callId !== app.currentCall.id) return;
+
+    try {
+        // Convert base64 back to blob
+        const audioBlob = base64ToBlob(data.audioBlob);
+
+        // Add to audio queue for sequential playback
+        app.audioQueue.push(audioBlob);
+
+        // Start playing if not already playing
+        if (!app.isPlayingAudio) {
+            playNextAudioChunk(app);
+        }
+
+        console.log('🔊 Received audio chunk from server');
+    } catch (error) {
+        console.error('❌ Error handling incoming audio:', error);
+    }
+}
+
+// Convert base64 to blob
+function base64ToBlob(base64Data) {
+    const arr = base64Data.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+
+    return new Blob([u8arr], { type: mime });
+}
+
+// Play next audio chunk in queue
+async function playNextAudioChunk(app) {
+    if (app.audioQueue.length === 0) {
+        app.isPlayingAudio = false;
+        return;
+    }
+
+    app.isPlayingAudio = true;
+    const audioBlob = app.audioQueue.shift();
+
+    try {
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+
+        // Set volume boost
+        audio.volume = Math.min(app.volumeLevel, 1.0);
+
+        // Play immediately
+        await audio.play();
+
+        // Clean up the URL after playing
+        audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            // Play next chunk
+            playNextAudioChunk(app);
+        };
+
+        console.log('▶️ Playing audio chunk with volume boost');
+    } catch (error) {
+        console.error('❌ Error playing audio chunk:', error);
+        // Continue with next chunk
+        playNextAudioChunk(app);
+    }
+}
+
+// Handle audio stream started/stopped events
+function handleAudioStreamStarted(app, data) {
+    if (!app.currentCall || data.callId !== app.currentCall.id) return;
+    console.log(`🎤 Audio stream started by ${data.fromUserId}`);
+    app.updateStatus(`Receiving audio from ${app.currentCall.targetUsername || 'peer'}`);
+}
+
+function handleAudioStreamStopped(app, data) {
+    if (!app.currentCall || data.callId !== app.currentCall.id) return;
+    console.log(`🔇 Audio stream stopped by ${data.fromUserId}`);
+    app.updateStatus(`Connected to ${app.currentCall.targetUsername || 'peer'} (server-mediated)`);
+}

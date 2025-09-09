@@ -5,6 +5,11 @@ class FriendsHandler {
     }
 
     async loadFriends() {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, skipping loadFriends');
+            return;
+        }
+        
         try {
             const response = await fetch('/api/friends', {
                 headers: { 'X-User-ID': this.app.currentUser.id }
@@ -13,6 +18,8 @@ class FriendsHandler {
             if (response.ok) {
                 this.app.friends = await response.json();
                 this.renderFriends();
+            } else {
+                console.error('Load friends failed:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Load friends error:', error);
@@ -39,6 +46,12 @@ class FriendsHandler {
     }
 
     async addFriend() {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot add friend');
+            utils.updateStatus('Please log in first');
+            return;
+        }
+        
         const username = document.getElementById('friend-username').value.trim();
         if (!username) return;
 
@@ -67,6 +80,12 @@ class FriendsHandler {
     }
 
     async callFriend(username) {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot call friend');
+            utils.updateStatus('Please log in first');
+            return;
+        }
+        
         if (this.app.currentCall) {
             utils.updateStatus('Call already in progress');
             return;
@@ -130,6 +149,11 @@ class FriendsHandler {
     }
 
     async loadFriendRequests() {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, skipping loadFriendRequests');
+            return;
+        }
+        
         try {
             const response = await fetch('/api/friends/requests', {
                 headers: { 'X-User-ID': this.app.currentUser.id }
@@ -139,6 +163,8 @@ class FriendsHandler {
                 const data = await response.json();
                 this.app.friendRequests = data.requests || [];
                 this.renderFriendRequests();
+            } else {
+                console.error('Load friend requests failed:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Load friend requests error:', error);
@@ -167,6 +193,12 @@ class FriendsHandler {
     }
 
     async acceptFriendRequest(friendshipId) {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot accept friend request');
+            utils.updateStatus('Please log in first');
+            return;
+        }
+        
         try {
             const response = await fetch(`/api/friends/${friendshipId}/accept`, {
                 method: 'POST',
@@ -187,6 +219,12 @@ class FriendsHandler {
     }
 
     async rejectFriendRequest(friendshipId) {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot reject friend request');
+            utils.updateStatus('Please log in first');
+            return;
+        }
+        
         try {
             const response = await fetch(`/api/friends/${friendshipId}/reject`, {
                 method: 'POST',
@@ -213,6 +251,12 @@ class FriendsHandler {
     }
 
     async unfriend(friendId, friendUsername) {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot unfriend');
+            utils.updateStatus('Please log in first');
+            return;
+        }
+        
         if (!confirm(`Remove ${friendUsername} from friends?`)) return;
 
         try {
@@ -236,5 +280,4 @@ class FriendsHandler {
     }
 }
 
-// Create global friends handler instance
-const friendsHandler = new FriendsHandler(app);
+// Handler will be instantiated in app.js

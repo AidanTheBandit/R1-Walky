@@ -24,27 +24,52 @@ class SimpleWalky {
 
     init() {
         console.log('Starting SimpleWalky...');
-
+        
+        // Create handlers first
+        window.utils = new Utils(this);
+        window.audioHandler = new AudioHandler(this);
+        window.socketHandler = new SocketHandler(this);
+        window.friendsHandler = new FriendsHandler(this);
+        window.callsHandler = new CallsHandler(this);
+        
         // Initialize audio elements
         this.ringtone = document.getElementById('ringtone');
         this.remoteAudio = document.getElementById('remote-audio');
-
+        
         // Initialize volume control
         this.setupVolumeControl();
-
+        
         // Check for existing session
         const saved = localStorage.getItem('walky_user');
         if (saved) {
             this.currentUser = JSON.parse(saved);
-            this.showMainScreen();
+            console.log('Found saved user:', this.currentUser);
+            
+            // Validate the user exists by making a test API call
+            this.validateUser().then(isValid => {
+                if (isValid) {
+                    this.showMainScreen();
+                } else {
+                    console.log('Saved user is invalid, clearing and showing login');
+                    localStorage.removeItem('walky_user');
+                    this.currentUser = null;
+                    this.updateStatus('Session expired - please log in again');
+                    this.setupLoginListeners();
+                }
+            }).catch(error => {
+                console.log('Error validating user, clearing and showing login:', error);
+                localStorage.removeItem('walky_user');
+                this.currentUser = null;
+                this.updateStatus('Connection error - please log in again');
+                this.setupLoginListeners();
+            });
         } else {
+            console.log('No saved user found, showing login screen');
             this.setupLoginListeners();
         }
-
+        
         this.updateDebug();
-    }
-
-    setupVolumeControl() {
+    }    setupVolumeControl() {
         const volumeSlider = document.getElementById('volume-slider');
         const volumeValue = document.getElementById('volume-value');
 
@@ -168,11 +193,20 @@ class SimpleWalky {
         `;
     }
 
-    updateStatus(message) {
-        const statusElement = document.getElementById('call-status');
-        if (statusElement) {
-            statusElement.textContent = message;
-            statusElement.className = 'call-status';
+    async validateUser() {
+        if (!this.currentUser || !this.currentUser.id) {
+            return false;
+        }
+        
+        try {
+            const response = await fetch('/api/users/me', {
+                headers: { 'X-User-ID': this.currentUser.id }
+            });
+            
+            return response.ok;
+        } catch (error) {
+            console.error('User validation error:', error);
+            return false;
         }
     }
 }

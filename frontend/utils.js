@@ -9,5 +9,4 @@ class Utils {
     }
 }
 
-// Create global utils instance
-const utils = new Utils(app);
+// Handler will be instantiated in app.js

@@ -5,6 +5,11 @@ class SocketHandler {
     }
 
     connectSocket() {
+        if (!this.app.currentUser || !this.app.currentUser.id) {
+            console.log('No current user, cannot connect socket');
+            return;
+        }
+        
         this.app.socket = io();
         this.app.socket.on('connect', () => {
             console.log('Socket connected');
@@ -107,5 +112,4 @@ class SocketHandler {
     }
 }
 
-// Create global socket handler instance
-const socketHandler = new SocketHandler(app);
+// Handler will be instantiated in app.js
