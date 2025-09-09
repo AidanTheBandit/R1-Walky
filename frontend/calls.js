@@ -12,6 +12,14 @@ class CallsHandler {
         btn.classList.add('active');
         utils.updateStatus('Transmitting (server-mediated)...');
 
+        // Enable audio tracks for PTT mode
+        if (this.app.localStream) {
+            this.app.localStream.getAudioTracks().forEach(track => {
+                track.enabled = true;
+                console.log('Enabled audio track for PTT:', track.label);
+            });
+        }
+
         // Start recording audio for server-mediated streaming
         audioHandler.startAudioRecording();
 
@@ -40,6 +48,14 @@ class CallsHandler {
 
         // Stop recording and send final audio chunk
         audioHandler.stopAudioRecording();
+
+        // Disable audio tracks again for PTT mode
+        if (this.app.localStream) {
+            this.app.localStream.getAudioTracks().forEach(track => {
+                track.enabled = false;
+                console.log('Disabled audio track after PTT:', track.label);
+            });
+        }
 
         // Notify server that we're stopping audio stream
         this.app.socket.emit('stop-audio-stream', {
