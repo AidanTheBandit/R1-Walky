@@ -10,7 +10,9 @@ class SimpleWalky {
         this.remoteStream = null;
         this.ringtone = null;
         this.remoteAudio = null;
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000
+        });
         this.gainNode = null;
         this.volumeLevel = 2.0; // Default 200% volume boost
         this.isRecording = false;

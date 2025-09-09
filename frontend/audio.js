@@ -2,11 +2,14 @@
 class AudioHandler {
     constructor(app) {
         this.app = app;
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Create AudioContext with the correct sample rate to match recording
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000
+        });
         this.scriptProcessor = null;
         this.audioQueue = [];
         this.isPlaying = false;
-        this.sampleRate = 48000;
+        this.sampleRate = 16000; // Match recording sample rate
         this.channels = 1;
     }
 

@@ -80,7 +80,7 @@ class CallsHandler {
                     echoCancellation: false,
                     noiseSuppression: false,
                     autoGainControl: false,
-                    sampleRate: 16000, // Lower sample rate for better compression
+                    sampleRate: 16000, // Back to original sample rate
                     channelCount: 1
                 }
             });
