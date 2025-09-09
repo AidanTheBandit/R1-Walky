@@ -4,26 +4,29 @@ class FriendsHandler {
         this.app = app;
     }
 
-    async loadFriends() {
+    loadFriends() {
         if (!this.app.currentUser || !this.app.currentUser.id) {
             console.log('No current user, skipping loadFriends');
             return;
         }
         
-        try {
-            const response = await fetch('/api/friends', {
-                headers: { 'X-User-ID': this.app.currentUser.id }
-            });
-
+        window.utils.xhrRequest('/api/friends', {
+            headers: { 'X-User-ID': this.app.currentUser.id }
+        }).then(function(response) {
+            console.log('loadFriends response:', response.ok, response.status);
             if (response.ok) {
-                this.app.friends = await response.json();
-                this.renderFriends();
+                response.json().then(function(data) {
+                    this.app.friends = data;
+                    this.renderFriends();
+                }.bind(this)).catch(function(error) {
+                    console.error('JSON parse error in loadFriends:', error);
+                });
             } else {
-                console.error('Load friends failed:', response.status, response.statusText);
+                console.error('Load friends failed:', response.status);
             }
-        } catch (error) {
+        }.bind(this)).catch(function(error) {
             console.error('Load friends error:', error);
-        }
+        }.bind(this));
     }
 
     renderFriends() {
@@ -45,7 +48,7 @@ class FriendsHandler {
         list.innerHTML = friendHtml;
     }
 
-    async addFriend() {
+    addFriend() {
         if (!this.app.currentUser || !this.app.currentUser.id) {
             console.log('No current user, cannot add friend');
             utils.updateStatus('Please log in first');
@@ -55,28 +58,30 @@ class FriendsHandler {
         const username = document.getElementById('friend-username').value.trim();
         if (!username) return;
 
-        try {
-            const response = await fetch('/api/friends', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-User-ID': this.app.currentUser.id
-                },
-                body: JSON.stringify({ friendUsername: username })
-            });
-
+        window.utils.xhrRequest('/api/friends', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': this.app.currentUser.id
+            },
+            body: JSON.stringify({ friendUsername: username })
+        }).then(response => {
+            console.log('addFriend response:', response.ok, response.status);
             if (response.ok) {
                 document.getElementById('friend-username').value = '';
                 utils.updateStatus('Friend request sent!');
                 setTimeout(() => this.loadFriends(), 1000);
             } else {
-                const error = await response.json();
-                utils.updateStatus(error.error || 'Failed to add friend');
+                response.json().then(error => {
+                    utils.updateStatus(error.error || 'Failed to add friend');
+                }).catch(() => {
+                    utils.updateStatus('Failed to add friend');
+                });
             }
-        } catch (error) {
+        }).catch(error => {
             console.error('Add friend error:', error);
             utils.updateStatus('Network error');
-        }
+        });
     }
 
     async callFriend(username) {
@@ -114,7 +119,7 @@ class FriendsHandler {
             });
 
             // Send call initiation to server (server-mediated)
-            const response = await fetch('/api/calls/initiate', {
+            const response = await window.utils.xhrRequest('/api/calls/initiate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -148,27 +153,29 @@ class FriendsHandler {
         }
     }
 
-    async loadFriendRequests() {
+    loadFriendRequests() {
         if (!this.app.currentUser || !this.app.currentUser.id) {
             console.log('No current user, skipping loadFriendRequests');
             return;
         }
         
-        try {
-            const response = await fetch('/api/friends/requests', {
-                headers: { 'X-User-ID': this.app.currentUser.id }
-            });
-
+        window.utils.xhrRequest('/api/friends/requests', {
+            headers: { 'X-User-ID': this.app.currentUser.id }
+        }).then(response => {
+            console.log('loadFriendRequests response:', response.ok, response.status);
             if (response.ok) {
-                const data = await response.json();
-                this.app.friendRequests = data.requests || [];
-                this.renderFriendRequests();
+                response.json().then(data => {
+                    this.app.friendRequests = data.requests || [];
+                    this.renderFriendRequests();
+                }).catch(error => {
+                    console.error('JSON parse error in loadFriendRequests:', error);
+                });
             } else {
-                console.error('Load friend requests failed:', response.status, response.statusText);
+                console.error('Load friend requests failed:', response.status);
             }
-        } catch (error) {
+        }).catch(error => {
             console.error('Load friend requests error:', error);
-        }
+        });
     }
 
     renderFriendRequests() {
@@ -200,7 +207,7 @@ class FriendsHandler {
         }
         
         try {
-            const response = await fetch(`/api/friends/${friendshipId}/accept`, {
+            const response = await window.utils.xhrRequest(`/api/friends/${friendshipId}/accept`, {
                 method: 'POST',
                 headers: { 'X-User-ID': this.app.currentUser.id }
             });
@@ -226,7 +233,7 @@ class FriendsHandler {
         }
         
         try {
-            const response = await fetch(`/api/friends/${friendshipId}/reject`, {
+            const response = await window.utils.xhrRequest(`/api/friends/${friendshipId}/reject`, {
                 method: 'POST',
                 headers: { 'X-User-ID': this.app.currentUser.id }
             });
@@ -260,7 +267,7 @@ class FriendsHandler {
         if (!confirm(`Remove ${friendUsername} from friends?`)) return;
 
         try {
-            const response = await fetch(`/api/friends/${friendId}`, {
+            const response = await window.utils.xhrRequest(`/api/friends/${friendId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-User-ID': this.app.currentUser.id

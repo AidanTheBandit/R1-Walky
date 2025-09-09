@@ -5,15 +5,48 @@ class SocketHandler {
     }
 
     connectSocket() {
+        console.log('connectSocket called');
         if (!this.app.currentUser || !this.app.currentUser.id) {
             console.log('No current user, cannot connect socket');
             return;
         }
         
+        if (typeof io === 'undefined') {
+            console.log('Socket.io not loaded, cannot connect');
+            // Update status to show offline
+            const statusElement = document.getElementById('connection-status');
+            if (statusElement) {
+                statusElement.textContent = 'Offline';
+                statusElement.className = 'status offline';
+            }
+            return;
+        }
+        
+        console.log('Creating socket connection');
         this.app.socket = io();
         this.app.socket.on('connect', () => {
-            console.log('Socket connected');
+            console.log('Socket connected successfully');
             this.app.socket.emit('register', this.app.currentUser.id);
+        });
+
+        this.app.socket.on('connect_error', (error) => {
+            console.log('Socket connection error:', error);
+            // Update status to show offline
+            const statusElement = document.getElementById('connection-status');
+            if (statusElement) {
+                statusElement.textContent = 'Offline';
+                statusElement.className = 'status offline';
+            }
+        });
+
+        this.app.socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+            // Update status to show offline
+            const statusElement = document.getElementById('connection-status');
+            if (statusElement) {
+                statusElement.textContent = 'Offline';
+                statusElement.className = 'status offline';
+            }
         });
 
         // Listen for real-time friend request events

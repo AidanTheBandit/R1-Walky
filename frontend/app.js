@@ -23,6 +23,20 @@ class SimpleWalky {
     init() {
         console.log('Starting SimpleWalky...');
         
+        // Test XMLHttpRequest availability
+        console.log('XMLHttpRequest available:', typeof XMLHttpRequest);
+        console.log('Promise available:', typeof Promise);
+        console.log('JSON available:', typeof JSON);
+        
+        // Test basic XMLHttpRequest
+        if (typeof XMLHttpRequest !== 'undefined') {
+            const testXhr = new XMLHttpRequest();
+            testXhr.open('GET', '/health', true);
+            testXhr.onload = () => console.log('Test XMLHttpRequest success, status:', testXhr.status);
+            testXhr.onerror = () => console.log('Test XMLHttpRequest failed');
+            testXhr.send();
+        }
+        
         // Create handlers first
         window.utils = new Utils(this);
         window.audioHandler = new AudioHandler(this);
@@ -131,7 +145,7 @@ class SimpleWalky {
         });
     }
 
-    async login() {
+    login() {
         const username = document.getElementById('username').value.trim();
         const status = document.getElementById('login-status');
 
@@ -144,29 +158,37 @@ class SimpleWalky {
         status.textContent = 'Joining...';
         status.className = 'status';
 
-        try {
-            const deviceId = 'R1-' + Date.now();
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, deviceId })
-            });
-
+        const deviceId = 'R1-' + Date.now();
+        window.utils.xhrRequest('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, deviceId })
+        }).then(response => {
+            console.log('Login response:', response.ok, response.status);
             if (response.ok) {
-                const user = await response.json();
-                this.currentUser = user;
-                localStorage.setItem('walky_user', JSON.stringify(user));
-                this.showMainScreen();
+                response.json().then(user => {
+                    this.currentUser = user;
+                    localStorage.setItem('walky_user', JSON.stringify(user));
+                    this.showMainScreen();
+                }).catch(error => {
+                    console.error('JSON parse error:', error);
+                    status.textContent = 'Response error';
+                    status.className = 'status error';
+                });
             } else {
-                const error = await response.json();
-                status.textContent = error.error || 'Login failed';
-                status.className = 'status error';
+                response.json().then(error => {
+                    status.textContent = error.error || 'Login failed';
+                    status.className = 'status error';
+                }).catch(() => {
+                    status.textContent = 'Login failed';
+                    status.className = 'status error';
+                });
             }
-        } catch (error) {
+        }).catch(error => {
             console.error('Login error:', error);
             status.textContent = 'Network error';
             status.className = 'status error';
-        }
+        });
     }
 
     showMainScreen() {
@@ -195,21 +217,26 @@ class SimpleWalky {
         `;
     }
 
-    async validateUser() {
+    validateUser() {
+        console.log('validateUser called');
         if (!this.currentUser || !this.currentUser.id) {
-            return false;
+            console.log('No current user or ID');
+            return Promise.resolve(false);
         }
         
-        try {
-            const response = await fetch('/api/users/me', {
+        console.log('Validating user:', this.currentUser.username, 'ID:', this.currentUser.id);
+        
+        return new Promise((resolve, reject) => {
+            window.utils.xhrRequest('/api/users/me', {
                 headers: { 'X-User-ID': this.currentUser.id }
+            }).then(response => {
+                console.log('validateUser response:', response.ok, response.status);
+                resolve(response.ok);
+            }).catch(error => {
+                console.error('User validation error:', error);
+                resolve(false);
             });
-            
-            return response.ok;
-        } catch (error) {
-            console.error('User validation error:', error);
-            return false;
-        }
+        });
     }
 
     updateStatus(message) {

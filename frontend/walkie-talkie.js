@@ -45,7 +45,39 @@ class WalkieTalkie {
         this.showDebugPanel();
     }
 
-    // Helper method to make authenticated API calls - Enhanced
+    // XMLHttpRequest wrapper for old browser compatibility
+    async xhrRequest(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open(options.method || 'GET', url, true);
+            
+            // Set headers
+            if (options.headers) {
+                for (const [key, value] of Object.entries(options.headers)) {
+                    xhr.setRequestHeader(key, value);
+                }
+            }
+            
+            xhr.onload = () => {
+                const response = {
+                    ok: xhr.status >= 200 && xhr.status < 300,
+                    status: xhr.status,
+                    json: () => Promise.resolve(JSON.parse(xhr.responseText || '{}'))
+                };
+                resolve(response);
+            };
+            
+            xhr.onerror = () => reject(new Error('Network error'));
+            
+            if (options.body) {
+                xhr.send(options.body);
+            } else {
+                xhr.send();
+            }
+        });
+    }
+
+    // Helper method to make authenticated API calls
     async apiCall(endpoint, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
@@ -67,7 +99,7 @@ class WalkieTalkie {
         }
 
         try {
-            const response = await fetch(endpoint, {
+            const response = await this.xhrRequest(endpoint, {
                 ...options,
                 headers
             });
@@ -84,7 +116,7 @@ class WalkieTalkie {
                     console.log('🔄 Session recovered, retrying API call');
                     // Retry the call with recovered session
                     headers['X-User-ID'] = this.currentUser.id;
-                    const retryResponse = await fetch(endpoint, {
+                    const retryResponse = await this.xhrRequest(endpoint, {
                         ...options,
                         headers
                     });
@@ -297,7 +329,7 @@ class WalkieTalkie {
     async getIceServers() {
         try {
             // Try to get fresh TURN server config from backend
-            const response = await fetch('/api/turn-servers');
+            const response = await this.xhrRequest('/api/turn-servers');
             if (response.ok) {
                 const config = await response.json();
                 console.log('🔄 Using dynamic TURN server configuration');

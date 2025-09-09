@@ -6,3 +6,7 @@ dist/
 *.log
 .vscode/
 walkie-talkie.db
+/backend/walkie-talkie.db
+*.sqlite
+*.sqlite3
+*.db

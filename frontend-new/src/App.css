@@ -2,7 +2,7 @@
 
 @font-face {
     font-family: 'PG';
-    src: url('pg.ttf') format('truetype');
+    src: url('/pg.ttf') format('truetype');
 }
 
 * {
