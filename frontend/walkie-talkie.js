@@ -1331,9 +1331,28 @@ class WalkieTalkie {
 
     async playRemoteAudio() {
         if (this.remoteStream) {
-            const audio = new Audio();
-            audio.srcObject = this.remoteStream;
-            audio.play();
+            try {
+                // Create audio context for volume boosting
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(this.remoteStream);
+
+                // Create gain node for volume boost (2x amplification)
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 2.0; // Boost volume by 2x
+
+                // Connect: source -> gain -> destination
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                console.log('🔊 WebRTC audio volume boosted by 2x');
+            } catch (error) {
+                console.error('❌ Error setting up volume boost for WebRTC:', error);
+                // Fallback to basic audio playback
+                const audio = new Audio();
+                audio.srcObject = this.remoteStream;
+                audio.volume = 1.0; // Maximum volume as fallback
+                audio.play();
+            }
         }
     }
 

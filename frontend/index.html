@@ -46,6 +46,11 @@
                     <div>HOLD</div>
                     <div>TO TALK</div>
                 </button>
+                <div class="volume-control">
+                    <label for="volume-slider">🔊 Volume:</label>
+                    <input type="range" id="volume-slider" min="0" max="3" step="0.1" value="2.0">
+                    <span id="volume-value">200%</span>
+                </div>
             </div>
             <button id="end-call-button" class="btn" style="display: none;">End Call</button>
             <div id="call-status" class="call-status"></div>
@@ -85,7 +90,9 @@
                 this.remoteStream = null;
                 this.ringtone = null;
                 this.remoteAudio = null;
-                this.isTransmitting = false;
+                this.audioContext = null;
+                this.gainNode = null;
+                this.volumeLevel = 2.0; // Default 200% volume boost
                 this.init();
             }
 
