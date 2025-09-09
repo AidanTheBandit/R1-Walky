@@ -257,6 +257,66 @@ class WalkieTalkie {
         ];
     }
 
+    // Check what type of connection is being used (direct P2P or TURN relay)
+    async checkConnectionType() {
+        try {
+            const stats = await this.peerConnection.getStats();
+            let localCandidateType = null;
+            let remoteCandidateType = null;
+            let connectionType = 'unknown';
+
+            stats.forEach(stat => {
+                if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
+                    // Get local candidate info
+                    if (stat.localCandidateId) {
+                        const localCandidate = stats.get(stat.localCandidateId);
+                        if (localCandidate) {
+                            localCandidateType = localCandidate.candidateType;
+                        }
+                    }
+
+                    // Get remote candidate info
+                    if (stat.remoteCandidateId) {
+                        const remoteCandidate = stats.get(stat.remoteCandidateId);
+                        if (remoteCandidate) {
+                            remoteCandidateType = remoteCandidate.candidateType;
+                        }
+                    }
+                }
+            });
+
+            // Determine connection type based on candidate types
+            if (localCandidateType === 'relay' || remoteCandidateType === 'relay') {
+                connectionType = 'relay';
+                console.log('🔄 Call connected via TURN relay server');
+                console.log(`   Local candidate: ${localCandidateType}, Remote candidate: ${remoteCandidateType}`);
+                this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (TURN relay)`);
+                this.showNotification('Connected via TURN relay - P2P failed, using server', 'warning');
+            } else if (localCandidateType === 'srflx' || remoteCandidateType === 'srflx') {
+                connectionType = 'stun';
+                console.log('🌐 Call connected via STUN server reflection');
+                console.log(`   Local candidate: ${localCandidateType}, Remote candidate: ${remoteCandidateType}`);
+                this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (NAT traversal)`);
+            } else if (localCandidateType === 'host' && remoteCandidateType === 'host') {
+                connectionType = 'direct';
+                console.log('🏠 Call connected via direct P2P');
+                console.log(`   Local candidate: ${localCandidateType}, Remote candidate: ${remoteCandidateType}`);
+                this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (direct P2P)`);
+            } else {
+                console.log(`📡 Call connected - Local: ${localCandidateType}, Remote: ${remoteCandidateType}`);
+                this.updateCallStatus(`Connected to ${this.currentCall.friend.username}`);
+            }
+
+            // Store connection type for debugging
+            if (this.currentCall) {
+                this.currentCall.connectionType = connectionType;
+            }
+
+        } catch (error) {
+            console.error('Error checking connection type:', error);
+        }
+    }
+
     // Screen Management
     showScreen(screenId) {
         document.querySelectorAll('.screen').forEach(screen => {
@@ -726,28 +786,10 @@ class WalkieTalkie {
                 this.updatePTTStatus('ready');
                 this.setFriendStatus(this.currentCall.friend.username, 'online');
 
-                // Check if we're using a relay (TURN server)
-                const stats = this.peerConnection.getStats();
-                stats.then(report => {
-                    let usingRelay = false;
-                    report.forEach(stat => {
-                        if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
-                            if (stat.remoteCandidateId) {
-                                const remoteCandidate = report.get(stat.remoteCandidateId);
-                                if (remoteCandidate && remoteCandidate.candidateType === 'relay') {
-                                    usingRelay = true;
-                                }
-                            }
-                        }
-                    });
-                    if (usingRelay) {
-                        console.log('🔄 Call connected via TURN relay server');
-                        this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (relay)`);
-                    } else {
-                        console.log('🌐 Call connected via direct P2P');
-                        this.updateCallStatus(`Connected to ${this.currentCall.friend.username} (direct)`);
-                    }
-                });
+                // Check connection type after a short delay to allow stats to populate
+                setTimeout(() => {
+                    this.checkConnectionType();
+                }, 1000);
             } else if (this.peerConnection.connectionState === 'disconnected' ||
                        this.peerConnection.connectionState === 'failed') {
                 this.updateCallStatus('Call disconnected');
@@ -897,6 +939,16 @@ class WalkieTalkie {
         if (this.currentCall && this.currentCall.id === data.callId) {
             try {
                 await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+
+                // Log received ICE candidate type for debugging
+                if (data.candidate.type === 'relay') {
+                    console.log('🔄 Received TURN relay candidate from peer');
+                    this.showNotification('Using TURN relay server', 'info');
+                } else if (data.candidate.type === 'srflx') {
+                    console.log('🌐 Received STUN server reflection candidate');
+                } else if (data.candidate.type === 'host') {
+                    console.log('🏠 Received direct host candidate');
+                }
             } catch (error) {
                 console.error('Error adding ICE candidate:', error);
             }
