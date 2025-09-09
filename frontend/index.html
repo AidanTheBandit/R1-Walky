@@ -702,117 +702,16 @@
                 }
             }
 
+            // Legacy WebRTC methods - commented out for server-mediated approach
+            /*
             setupPeerConnection() {
-                this.peerConnection = new RTCPeerConnection({
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' }
-                    ],
-                    iceCandidatePoolSize: 10
-                });
-                
-                this.peerConnection.onicecandidate = (event) => {
-                    if (event.candidate && this.currentCall) {
-                        console.log('Sending ICE candidate:', event.candidate.type, event.candidate.candidate);
-                        const targetId = this.currentCall.isInitiator ? this.currentCall.targetId : this.currentCall.caller;
-                        console.log('Sending ICE candidate to:', targetId);
-                        this.socket.emit('ice-candidate', {
-                            callId: this.currentCall.id,
-                            candidate: event.candidate,
-                            targetId: targetId
-                        });
-                    } else if (!event.candidate) {
-                        console.log('ICE gathering completed');
-                    }
-                };
-                
-                this.peerConnection.ontrack = (event) => {
-                    console.log('Remote stream received:', event.streams.length, 'streams');
-                    this.remoteStream = event.streams[0];
-                    
-                    if (this.remoteStream) {
-                        console.log('Remote stream tracks:', this.remoteStream.getTracks().length);
-                        this.remoteStream.getTracks().forEach(track => {
-                            console.log('Remote track:', track.kind, track.label, 'enabled:', track.enabled);
-                        });
-                        
-                        // Connect remote stream to audio element with volume boost
-                        this.setupVolumeBoost(this.remoteStream);
-                        
-                        // Connect remote stream to audio element for playback
-                        this.remoteAudio.srcObject = this.remoteStream;
-                        this.remoteAudio.volume = Math.min(this.volumeLevel, 1.0); // Set initial volume
-                        this.remoteAudio.play().then(() => {
-                            console.log('Remote audio playing successfully with volume boost');
-                        }).catch(e => {
-                            console.error('Remote audio play failed:', e);
-                            // Try to play with user interaction
-                            document.addEventListener('click', () => {
-                                this.remoteAudio.play().catch(console.error);
-                            }, { once: true });
-                        });
-                    }
-                    
-                    // Force call to connected state when we receive remote track
-                    console.log('Setting call status to connected due to remote track');
-                    this.currentCall.status = 'connected';
-                    this.updateStatus('Connected - ready to talk');
-                    this.showEndCallButton();
-                };
-                
-                this.peerConnection.onconnectionstatechange = () => {
-                    console.log('=== Connection State Changed ===');
-                    console.log('Connection state:', this.peerConnection.connectionState);
-                    console.log('ICE connection state:', this.peerConnection.iceConnectionState);
-                    console.log('ICE gathering state:', this.peerConnection.iceGatheringState);
-                    console.log('Signaling state:', this.peerConnection.signalingState);
-                    
-                    if (this.peerConnection.connectionState === 'connected') {
-                        this.updateStatus('Connected');
-                        this.currentCall.status = 'connected';
-                        this.showEndCallButton();
-                        
-                        // Log sender/receiver info when connected
-                        console.log('=== WebRTC Connection Established ===');
-                        this.peerConnection.getSenders().forEach((sender, i) => {
-                            if (sender.track) {
-                                console.log(`Sender ${i}:`, sender.track.kind, sender.track.label, 'enabled:', sender.track.enabled);
-                            }
-                        });
-                        this.peerConnection.getReceivers().forEach((receiver, i) => {
-                            if (receiver.track) {
-                                console.log(`Receiver ${i}:`, receiver.track.kind, receiver.track.label, 'enabled:', receiver.track.enabled);
-                            }
-                        });
-                    } else if (this.peerConnection.connectionState === 'disconnected') {
-                        this.endCall();
-                    }
-                };
-                
-                // Also monitor ICE connection state
-                this.peerConnection.oniceconnectionstatechange = () => {
-                    console.log('ICE connection state changed:', this.peerConnection.iceConnectionState);
-                    if (this.peerConnection.iceConnectionState === 'connected' || this.peerConnection.iceConnectionState === 'completed') {
-                        console.log('ICE connection established - audio should flow now');
-                        this.currentCall.status = 'connected';
-                        this.showEndCallButton();
-                        this.updateStatus('Connected - ready to talk');
-                    } else if (this.peerConnection.iceConnectionState === 'failed') {
-                        console.log('ICE connection failed - attempting restart');
-                        this.peerConnection.restartIce();
-                    } else if (this.peerConnection.iceConnectionState === 'disconnected') {
-                        console.log('ICE connection disconnected');
-                        setTimeout(() => {
-                            if (this.peerConnection.iceConnectionState === 'disconnected') {
-                                console.log('ICE still disconnected after timeout, ending call');
-                                this.endCall();
-                            }
-                        }, 5000);
-                    }
-                };
+                // ... WebRTC peer connection setup code ...
             }
+
+            async handleIceCandidate(data) {
+                // ... WebRTC ICE candidate handling code ...
+            }
+            */
             
             handleIncomingCall(data) {
                 this.currentCall = {
@@ -1033,11 +932,13 @@
 
             updateDebug() {
                 const debug = document.getElementById('debug');
+                const mode = this.useServerMediated ? 'Server-Mediated' : 'WebRTC P2P';
                 debug.innerHTML = `
                     User: ${this.currentUser ? this.currentUser.username : 'None'}<br>
                     Friends: ${this.friends.length}<br>
                     Requests: ${this.friendRequests.length}<br>
                     Call: ${this.currentCall ? this.currentCall.status : 'None'}<br>
+                    Mode: ${mode}<br>
                     Platform: ${navigator.platform.substring(0, 10)}
                 `;
             }
