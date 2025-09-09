@@ -218,43 +218,77 @@ class WalkieTalkie {
 
         const testIceServers = [
             {
-                urls: 'turn:turn.bistri.com:80',
-                username: 'homeo',
-                credential: 'homeo'
+                urls: 'turn:turn.cloudflare.com:3478',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn.quickblox.com:3478',
+                username: 'quickblox',
+                credential: 'quickblox'
             }
         ];
 
-        try {
-            const pc = new RTCPeerConnection({ iceServers: testIceServers });
-            let turnReachable = false;
+        let turnReachable = false;
+        let testCount = 0;
 
-            pc.onicecandidate = (event) => {
-                if (event.candidate && event.candidate.type === 'relay') {
-                    turnReachable = true;
-                    console.log('✅ TURN server is reachable');
+        for (const server of testIceServers) {
+            try {
+                console.log(`Testing TURN server: ${server.urls}`);
+                testCount++;
+
+                const pc = new RTCPeerConnection({ iceServers: [server] });
+                let serverReachable = false;
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate && event.candidate.type === 'relay') {
+                        serverReachable = true;
+                        turnReachable = true;
+                        console.log(`✅ TURN server reachable: ${server.urls}`);
+                    }
+                };
+
+                // Create a data channel to trigger ICE gathering
+                pc.createDataChannel('test');
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                // Wait for ICE candidates
+                await new Promise(resolve => {
+                    const timeout = setTimeout(() => resolve(), 5000); // 5 second timeout per server
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate && event.candidate.type === 'relay') {
+                            serverReachable = true;
+                            turnReachable = true;
+                            clearTimeout(timeout);
+                            resolve();
+                        } else if (!event.candidate) {
+                            clearTimeout(timeout);
+                            resolve();
+                        }
+                    };
+                });
+
+                pc.close();
+
+                if (serverReachable) {
+                    console.log(`✅ TURN server ${server.urls} is working`);
+                    break; // Found a working server, no need to test others
+                } else {
+                    console.log(`❌ TURN server ${server.urls} not reachable`);
                 }
-            };
 
-            // Create a data channel to trigger ICE gathering
-            pc.createDataChannel('test');
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
-            // Wait a bit for ICE candidates
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            pc.close();
-
-            if (turnReachable) {
-                console.log('✅ TURN server connectivity test passed');
-                return true;
-            } else {
-                console.log('❌ TURN server connectivity test failed');
-                return false;
+            } catch (error) {
+                console.error(`❌ Error testing TURN server ${server.urls}:`, error);
             }
-        } catch (error) {
-            console.error('❌ Error testing TURN connectivity:', error);
+        }
+
+        if (turnReachable) {
+            console.log('✅ TURN server connectivity test passed');
+            return true;
+        } else {
+            console.log('❌ All TURN server connectivity tests failed');
             return false;
         }
     }
@@ -273,19 +307,32 @@ class WalkieTalkie {
             console.log('⚠️ Could not fetch dynamic TURN config, using fallback');
         }
 
-        // Fallback to static configuration
+        // Fallback to static configuration with prioritized TURN servers
         return [
-            // STUN servers for direct P2P connection
+            // STUN servers for direct P2P connection (highest priority)
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun3.l.google.com:19302' },
             { urls: 'stun:stun4.l.google.com:19302' },
-            // TURN servers for relay when P2P fails
+
+            // Primary TURN servers (higher priority)
             {
-                urls: 'turn:turn.bistri.com:80',
-                username: 'homeo',
-                credential: 'homeo'
+                urls: 'turn:turn.cloudflare.com:3478',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn.cloudflare.com:3478?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+
+            // Secondary TURN servers
+            {
+                urls: 'turn:turn.quickblox.com:3478',
+                username: 'quickblox',
+                credential: 'quickblox'
             },
             {
                 urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
@@ -297,7 +344,8 @@ class WalkieTalkie {
                 username: 'webrtc',
                 credential: 'webrtc'
             },
-            // Additional public TURN servers
+
+            // Additional TURN servers
             {
                 urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
                 username: 'webrtc@live.com',
@@ -307,12 +355,6 @@ class WalkieTalkie {
                 urls: 'turn:turn.ekiga.net:3478',
                 username: 'ekiga',
                 credential: 'ekiga'
-            },
-            // Backup TURN servers
-            {
-                urls: 'turn:turn.quickblox.com:3478',
-                username: 'quickblox',
-                credential: 'quickblox'
             }
         ];
     }
@@ -324,6 +366,12 @@ class WalkieTalkie {
         try {
             console.log('🔄 Retrying connection with alternative TURN servers...');
 
+            // Clear any existing connection timeout
+            if (this.connectionTimeout) {
+                clearTimeout(this.connectionTimeout);
+                this.connectionTimeout = null;
+            }
+
             // Close current connection
             if (this.peerConnection) {
                 this.peerConnection.close();
@@ -334,16 +382,21 @@ class WalkieTalkie {
                 // Keep STUN servers
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                // Try different TURN servers
+                // Try different TURN servers with higher priority
+                {
+                    urls: 'turn:turn.cloudflare.com:3478',
+                    username: 'webrtc',
+                    credential: 'webrtc'
+                },
+                {
+                    urls: 'turn:turn.cloudflare.com:3478?transport=tcp',
+                    username: 'webrtc',
+                    credential: 'webrtc'
+                },
                 {
                     urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
                     username: 'webrtc@live.com',
                     credential: 'muazkh'
-                },
-                {
-                    urls: 'turn:turn.ekiga.net:3478',
-                    username: 'ekiga',
-                    credential: 'ekiga'
                 },
                 {
                     urls: 'turn:turn.quickblox.com:3478',
@@ -354,7 +407,8 @@ class WalkieTalkie {
 
             // Create new peer connection
             this.peerConnection = new RTCPeerConnection({
-                iceServers: alternativeIceServers
+                iceServers: alternativeIceServers,
+                iceCandidatePoolSize: 10 // Increase ICE candidate pool
             });
 
             // Set up event handlers
@@ -918,6 +972,39 @@ class WalkieTalkie {
             }
         };
 
+        // Handle ICE gathering state changes
+        this.peerConnection.onicegatheringstatechange = () => {
+            console.log('ICE gathering state:', this.peerConnection.iceGatheringState);
+
+            if (this.peerConnection.iceGatheringState === 'complete') {
+                console.log('✅ ICE gathering completed');
+                // Give more time for connection establishment
+                setTimeout(() => {
+                    if (this.peerConnection.connectionState === 'connecting') {
+                        console.log('⏰ ICE gathering complete but still connecting, waiting longer...');
+                    }
+                }, 2000);
+            }
+        };
+
+        // Handle ICE connection state changes
+        this.peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE connection state:', this.peerConnection.iceConnectionState);
+
+            if (this.peerConnection.iceConnectionState === 'connected') {
+                console.log('✅ ICE connection established');
+            } else if (this.peerConnection.iceConnectionState === 'completed') {
+                console.log('🎉 ICE connection completed');
+            } else if (this.peerConnection.iceConnectionState === 'failed') {
+                console.log('❌ ICE connection failed');
+                this.updateCallStatus('ICE connection failed - retrying...');
+                this.retryConnectionWithAlternativeServers();
+            } else if (this.peerConnection.iceConnectionState === 'disconnected') {
+                console.log('⚠️ ICE connection disconnected');
+                this.updateCallStatus('Connection lost - attempting recovery...');
+            }
+        };
+
         // Handle connection state changes
         this.peerConnection.onconnectionstatechange = () => {
             console.log('Connection state:', this.peerConnection.connectionState);
@@ -940,7 +1027,7 @@ class WalkieTalkie {
                         this.updateCallStatus('Call disconnected');
                         this.endCall();
                     }
-                }, 5000);
+                }, 10000); // Increased timeout
             } else if (this.peerConnection.connectionState === 'failed') {
                 console.log('❌ Connection failed, trying alternative TURN servers...');
                 this.updateCallStatus('Connection failed - retrying with different servers');
@@ -948,6 +1035,20 @@ class WalkieTalkie {
                 this.retryConnectionWithAlternativeServers();
             } else if (this.peerConnection.connectionState === 'connecting') {
                 this.updateCallStatus('Connecting...');
+                // Set a timeout for connection establishment
+                this.connectionTimeout = setTimeout(() => {
+                    if (this.peerConnection.connectionState === 'connecting') {
+                        console.log('⏰ Connection timeout - retrying...');
+                        this.updateCallStatus('Connection timeout - retrying...');
+                        this.retryConnectionWithAlternativeServers();
+                    }
+                }, 15000); // 15 second timeout
+            } else if (this.peerConnection.connectionState === 'connected') {
+                // Clear connection timeout when connected
+                if (this.connectionTimeout) {
+                    clearTimeout(this.connectionTimeout);
+                    this.connectionTimeout = null;
+                }
             }
         };
 

@@ -112,10 +112,22 @@ function setupRoutes() {
     app.get('/api/turn-servers', (req, res) => {
         // Return TURN server configuration for WebRTC relay fallback
         const turnServers = [
+            // Primary reliable TURN servers
             {
-                urls: 'turn:turn.bistri.com:80',
-                username: 'homeo',
-                credential: 'homeo'
+                urls: 'turn:turn.cloudflare.com:3478',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            {
+                urls: 'turn:turn.cloudflare.com:3478?transport=tcp',
+                username: 'webrtc',
+                credential: 'webrtc'
+            },
+            // Backup TURN servers
+            {
+                urls: 'turn:turn.quickblox.com:3478',
+                username: 'quickblox',
+                credential: 'quickblox'
             },
             {
                 urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
@@ -127,6 +139,7 @@ function setupRoutes() {
                 username: 'webrtc',
                 credential: 'webrtc'
             },
+            // Additional reliable servers
             {
                 urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
                 username: 'webrtc@live.com',
@@ -136,23 +149,18 @@ function setupRoutes() {
                 urls: 'turn:turn.ekiga.net:3478',
                 username: 'ekiga',
                 credential: 'ekiga'
-            },
-            {
-                urls: 'turn:turn.quickblox.com:3478',
-                username: 'quickblox',
-                credential: 'quickblox'
             }
         ];
 
         res.json({
             iceServers: [
-                // STUN servers
+                // STUN servers for direct P2P connection
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
                 { urls: 'stun:stun3.l.google.com:19302' },
                 { urls: 'stun:stun4.l.google.com:19302' },
-                // TURN servers
+                // TURN servers for relay when P2P fails
                 ...turnServers
             ]
         });
