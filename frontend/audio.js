@@ -12,13 +12,19 @@ class AudioHandler {
 
     // Audio recording for server-mediated streaming using ScriptProcessorNode
     async startAudioRecording() {
-        if (!this.app.localStream) return;
+        if (!this.app.localStream) {
+            console.error('❌ No local stream available for recording');
+            return;
+        }
 
         try {
             // Resume audio context if suspended
             if (this.audioContext.state === 'suspended') {
+                console.log('🔄 Resuming audio context for recording...');
                 await this.audioContext.resume();
             }
+
+            console.log(`🎤 Starting recording with audio context state: ${this.audioContext.state}`);
 
             // Create media stream source
             const source = this.audioContext.createMediaStreamSource(this.app.localStream);
