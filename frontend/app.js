@@ -209,6 +209,13 @@ class SimpleWalky {
             return false;
         }
     }
+
+    updateStatus(message) {
+        const statusElement = document.getElementById('call-status');
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
+    }
 }
 
 // Start the app
