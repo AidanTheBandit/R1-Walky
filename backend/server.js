@@ -110,9 +110,9 @@ function setupRoutes() {
 
     // Get TURN server configuration
     app.get('/api/turn-servers', (req, res) => {
-        // Return TURN server configuration for WebRTC relay fallback
+        // Return TURN server configuration optimized for Cloudflare tunnel
         const turnServers = [
-            // Primary reliable TURN servers
+            // Cloudflare TURN servers (primary for tunnel compatibility)
             {
                 urls: 'turn:turn.cloudflare.com:3478',
                 username: 'webrtc',
@@ -123,12 +123,23 @@ function setupRoutes() {
                 username: 'webrtc',
                 credential: 'webrtc'
             },
-            // Backup TURN servers
+            // High-reliability TURN servers for restrictive networks
             {
-                urls: 'turn:turn.quickblox.com:3478',
-                username: 'quickblox',
-                credential: 'quickblox'
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            // Alternative TURN servers with TCP transport (better for tunnels)
             {
                 urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
                 username: 'webrtc',
@@ -139,11 +150,16 @@ function setupRoutes() {
                 username: 'webrtc',
                 credential: 'webrtc'
             },
-            // Additional reliable servers
             {
                 urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
                 username: 'webrtc@live.com',
                 credential: 'muazkh'
+            },
+            // UDP TURN servers as fallback
+            {
+                urls: 'turn:turn.quickblox.com:3478',
+                username: 'quickblox',
+                credential: 'quickblox'
             },
             {
                 urls: 'turn:turn.ekiga.net:3478',

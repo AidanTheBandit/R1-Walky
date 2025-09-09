@@ -408,7 +408,13 @@ class WalkieTalkie {
             // Create new peer connection
             this.peerConnection = new RTCPeerConnection({
                 iceServers: alternativeIceServers,
-                iceCandidatePoolSize: 10 // Increase ICE candidate pool
+                iceCandidatePoolSize: 10,
+                // Bundle policy for better tunnel compatibility
+                bundlePolicy: 'max-bundle',
+                // RTCP mux policy
+                rtcpMuxPolicy: 'require',
+                // ICE transport policy - prefer relay for tunnel scenarios
+                iceTransportPolicy: 'all'
             });
 
             // Set up event handlers
@@ -895,10 +901,17 @@ class WalkieTalkie {
                 }
             });
 
-            // Create peer connection with TURN servers for relay fallback
+            // Create peer connection with enhanced configuration for Cloudflare tunnel
             const iceServers = await this.getIceServers();
             this.peerConnection = new RTCPeerConnection({
-                iceServers: iceServers
+                iceServers: iceServers,
+                iceCandidatePoolSize: 10,
+                // Bundle policy for better tunnel compatibility
+                bundlePolicy: 'max-bundle',
+                // RTCP mux policy
+                rtcpMuxPolicy: 'require',
+                // ICE transport policy - prefer relay for tunnel scenarios
+                iceTransportPolicy: 'all'
             });
 
             // Set up event handlers
@@ -1138,10 +1151,17 @@ class WalkieTalkie {
                 }
             });
 
-            // Create peer connection with TURN servers for relay fallback
+            // Create peer connection with enhanced configuration for Cloudflare tunnel
             const iceServers = await this.getIceServers();
             this.peerConnection = new RTCPeerConnection({
-                iceServers: iceServers
+                iceServers: iceServers,
+                iceCandidatePoolSize: 10,
+                // Bundle policy for better tunnel compatibility
+                bundlePolicy: 'max-bundle',
+                // RTCP mux policy
+                rtcpMuxPolicy: 'require',
+                // ICE transport policy - prefer relay for tunnel scenarios
+                iceTransportPolicy: 'all'
             });
 
             // Set up event handlers
