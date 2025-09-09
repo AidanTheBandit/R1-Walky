@@ -2,47 +2,50 @@
 class AudioHandler {
     constructor(app) {
         this.app = app;
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.scriptProcessor = null;
+        this.audioQueue = [];
+        this.isPlaying = false;
+        this.sampleRate = 48000;
+        this.channels = 1;
     }
 
-    // Audio recording for server-mediated streaming
-    startAudioRecording() {
+    // Audio recording for server-mediated streaming using ScriptProcessorNode
+    async startAudioRecording() {
         if (!this.app.localStream) return;
 
-        this.app.audioChunks = [];
-
         try {
-            let mimeType = 'audio/webm';
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                mimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-                mimeType = 'audio/ogg;codecs=opus';
-            } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                mimeType = 'audio/webm;codecs=opus';
+            // Resume audio context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
             }
 
-            this.app.mediaRecorder = new MediaRecorder(this.app.localStream, {
-                mimeType: mimeType
-            });
-
-            this.app.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    this.app.audioChunks.push(event.data);
-                    // Send audio chunk to server immediately
-                    this.sendAudioChunk(event.data);
+            // Create media stream source
+            const source = this.audioContext.createMediaStreamSource(this.app.localStream);
+            
+            // Create script processor for raw audio data
+            this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+            
+            this.scriptProcessor.onaudioprocess = (event) => {
+                if (!this.app.currentCall || !this.app.isRecording) return;
+                
+                const inputBuffer = event.inputBuffer;
+                const inputData = inputBuffer.getChannelData(0);
+                
+                // Convert Float32Array to Int16Array for transmission
+                const pcmData = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
                 }
+                
+                // Send PCM data to server
+                this.sendAudioData(pcmData);
             };
-
-            this.app.mediaRecorder.onstop = () => {
-                // Send any remaining audio data
-                if (this.app.audioChunks.length > 0) {
-                    const audioBlob = new Blob(this.app.audioChunks, { type: mimeType });
-                    this.sendAudioChunk(audioBlob);
-                    this.app.audioChunks = [];
-                }
-            };
-
-            // Start recording with small time slices for real-time streaming
-            this.app.mediaRecorder.start(100); // 100ms chunks
+            
+            // Connect nodes
+            source.connect(this.scriptProcessor);
+            this.scriptProcessor.connect(this.audioContext.destination);
+            
             this.app.isRecording = true;
             console.log('✅ Server-mediated audio recording started');
 
@@ -52,101 +55,130 @@ class AudioHandler {
     }
 
     stopAudioRecording() {
-        if (this.app.mediaRecorder && this.app.mediaRecorder.state !== 'inactive') {
-            this.app.mediaRecorder.stop();
-            this.app.isRecording = false;
-            console.log('✅ Server-mediated audio recording stopped');
+        if (this.scriptProcessor) {
+            this.scriptProcessor.disconnect();
+            this.scriptProcessor = null;
         }
+        this.app.isRecording = false;
+        console.log('✅ Server-mediated audio recording stopped');
     }
 
-    // Send audio chunk to server
-    sendAudioChunk(audioBlob) {
+    // Send PCM audio data to server
+    sendAudioData(pcmData) {
         if (!this.app.currentCall) return;
 
-        // Convert blob to base64 for transmission
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64Audio = reader.result;
+        // Convert Int16Array to base64 for transmission
+        const buffer = pcmData.buffer;
+        const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
-            this.app.socket.emit('audio-data', {
-                callId: this.app.currentCall.id,
-                audioBlob: base64Audio,
-                targetId: this.app.currentCall.targetId
-            });
-        };
-        reader.readAsDataURL(audioBlob);
+        this.app.socket.emit('audio-data', {
+            callId: this.app.currentCall.id,
+            audioData: base64Data,
+            sampleRate: this.sampleRate,
+            channels: this.channels,
+            targetId: this.app.currentCall.targetId
+        });
     }
 
-    // Handle incoming audio data from server (server-mediated)
+    // Handle incoming PCM audio data from server
     handleIncomingAudio(data) {
         if (!this.app.currentCall || data.callId !== this.app.currentCall.id) return;
 
         try {
-            // Convert base64 back to blob
-            const audioBlob = this.base64ToBlob(data.audioBlob);
-
-            // Add to audio queue for sequential playback
-            this.app.audioQueue.push(audioBlob);
-
+            // Decode base64 PCM data
+            const binaryString = atob(data.audioData);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            // Convert to Int16Array
+            const pcmData = new Int16Array(bytes.buffer);
+            
+            // Add to audio queue
+            this.audioQueue.push(pcmData);
+            
             // Start playing if not already playing
-            if (!this.app.isPlayingAudio) {
-                this.playNextAudioChunk();
+            if (!this.isPlaying) {
+                this.startPlayback();
             }
 
-            console.log('🔊 Received audio chunk from server');
+            console.log('🔊 Received PCM audio data from server');
         } catch (error) {
             console.error('❌ Error handling incoming audio:', error);
         }
     }
 
-    // Convert base64 to blob
-    base64ToBlob(base64Data) {
-        const arr = base64Data.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+    // Start continuous audio playback
+    async startPlayback() {
+        if (this.isPlaying) return;
+        
+        try {
+            // Resume audio context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
+            this.isPlaying = true;
+            this.playAudioQueue();
+            console.log('▶️ Started audio playback');
+        } catch (error) {
+            console.error('❌ Error starting playback:', error);
+            this.isPlaying = false;
         }
-
-        return new Blob([u8arr], { type: mime });
     }
 
-    // Play next audio chunk in queue
-    async playNextAudioChunk() {
-        if (this.app.audioQueue.length === 0) {
-            this.app.isPlayingAudio = false;
-            return;
+    // Play audio from queue continuously
+    playAudioQueue() {
+        if (!this.isPlaying) return;
+        
+        if (this.audioQueue.length > 0) {
+            const pcmData = this.audioQueue.shift();
+            this.playPCMData(pcmData);
         }
+        
+        // Schedule next playback
+        setTimeout(() => this.playAudioQueue(), 50); // 20fps audio chunks
+    }
 
-        this.app.isPlayingAudio = true;
-        const audioBlob = this.app.audioQueue.shift();
-
+    // Play PCM data using Web Audio API
+    playPCMData(pcmData) {
         try {
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-
-            // Set volume boost
-            audio.volume = Math.min(this.app.volumeLevel, 1.0);
-
-            // Play immediately
-            await audio.play();
-
-            // Clean up the URL after playing
-            audio.onended = () => {
-                URL.revokeObjectURL(audioUrl);
-                // Play next chunk
-                this.playNextAudioChunk();
-            };
-
-            console.log('▶️ Playing audio chunk with volume boost');
+            // Create audio buffer
+            const audioBuffer = this.audioContext.createBuffer(
+                this.channels, 
+                pcmData.length, 
+                this.sampleRate
+            );
+            
+            // Fill audio buffer with PCM data
+            const channelData = audioBuffer.getChannelData(0);
+            for (let i = 0; i < pcmData.length; i++) {
+                channelData[i] = pcmData[i] / 32768.0; // Convert back to float
+            }
+            
+            // Create buffer source
+            const source = this.audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            
+            // Apply volume boost
+            const gainNode = this.audioContext.createGain();
+            gainNode.gain.value = Math.min(this.app.volumeLevel || 1.0, 2.0);
+            
+            // Connect and play
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            source.start();
+            
         } catch (error) {
-            console.error('❌ Error playing audio chunk:', error);
-            // Continue with next chunk
-            this.playNextAudioChunk();
+            console.error('❌ Error playing PCM data:', error);
         }
+    }
+
+    stopPlayback() {
+        this.isPlaying = false;
+        this.audioQueue = [];
+        console.log('🔇 Stopped audio playback');
     }
 
     // Handle audio stream started/stopped events
@@ -160,125 +192,46 @@ class AudioHandler {
         if (!this.app.currentCall || data.callId !== this.app.currentCall.id) return;
         console.log(`🔇 Audio stream stopped by ${data.fromUserId}`);
         this.app.updateStatus(`Connected to ${this.app.currentCall.targetUsername || 'peer'} (server-mediated)`);
+        this.stopPlayback();
     }
 }
 
-// Handler will be instantiated in app.js
-
+// Legacy function handlers for backward compatibility
 function stopAudioRecording(app) {
-    if (app.mediaRecorder && app.mediaRecorder.state !== 'inactive') {
-        app.mediaRecorder.stop();
-        app.isRecording = false;
-        console.log('✅ Server-mediated audio recording stopped');
+    if (window.audioHandler) {
+        window.audioHandler.stopAudioRecording();
     }
 }
 
-// Send audio chunk to server
 function sendAudioChunk(app, audioBlob) {
-    if (!app.currentCall) return;
-
-    // Convert blob to base64 for transmission
-    const reader = new FileReader();
-    reader.onloadend = () => {
-        const base64Audio = reader.result;
-
-        app.socket.emit('audio-data', {
-            callId: app.currentCall.id,
-            audioBlob: base64Audio,
-            targetId: app.currentCall.targetId
-        });
-    };
-    reader.readAsDataURL(audioBlob);
+    // This function is now handled by the AudioHandler class
+    console.warn('sendAudioChunk is deprecated - using AudioHandler.sendAudioData instead');
 }
 
-// Handle incoming audio data from server (server-mediated)
 function handleIncomingAudio(app, data) {
-    if (!app.currentCall || data.callId !== app.currentCall.id) return;
-
-    try {
-        // Convert base64 back to blob
-        const audioBlob = base64ToBlob(data.audioBlob);
-
-        // Add to audio buffer
-        app.audioBuffer.push(audioBlob);
-
-        // If we have enough chunks, combine and add to queue
-        if (app.audioBuffer.length >= 3) {
-            const combinedBlob = new Blob(app.audioBuffer, { type: app.audioBuffer[0].type });
-            app.audioQueue.push(combinedBlob);
-            app.audioBuffer = []; // Clear buffer
-
-            // Start playing if not already playing
-            if (!app.isPlayingAudio) {
-                playNextAudioChunk(app);
-            }
-        }
-
-        console.log('🔊 Received audio chunk from server');
-    } catch (error) {
-        console.error('❌ Error handling incoming audio:', error);
+    if (window.audioHandler) {
+        window.audioHandler.handleIncomingAudio(data);
     }
 }
 
-// Convert base64 to blob
 function base64ToBlob(base64Data) {
-    const arr = base64Data.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-
-    return new Blob([u8arr], { type: mime });
+    // This function is no longer needed for PCM audio
+    console.warn('base64ToBlob is deprecated for PCM audio streaming');
 }
 
-// Play next audio chunk in queue
-async function playNextAudioChunk(app) {
-    if (app.audioQueue.length === 0) {
-        app.isPlayingAudio = false;
-        return;
-    }
-
-    app.isPlayingAudio = true;
-    const audioBlob = app.audioQueue.shift();
-
-    try {
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-
-        // Set volume boost
-        audio.volume = Math.min(app.volumeLevel, 1.0);
-
-        // Play immediately
-        await audio.play();
-
-        // Clean up the URL after playing
-        audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            // Play next chunk
-            playNextAudioChunk(app);
-        };
-
-        console.log('▶️ Playing audio chunk with volume boost');
-    } catch (error) {
-        console.error('❌ Error playing audio chunk:', error);
-        // Continue with next chunk
-        playNextAudioChunk(app);
-    }
+function playNextAudioChunk(app) {
+    // This function is now handled by the AudioHandler class
+    console.warn('playNextAudioChunk is deprecated - using AudioHandler.playAudioQueue instead');
 }
 
-// Handle audio stream started/stopped events
 function handleAudioStreamStarted(app, data) {
-    if (!app.currentCall || data.callId !== app.currentCall.id) return;
-    console.log(`🎤 Audio stream started by ${data.fromUserId}`);
-    app.updateStatus(`Receiving audio from ${app.currentCall.targetUsername || 'peer'}`);
+    if (window.audioHandler) {
+        window.audioHandler.handleAudioStreamStarted(data);
+    }
 }
 
 function handleAudioStreamStopped(app, data) {
-    if (!app.currentCall || data.callId !== app.currentCall.id) return;
-    console.log(`🔇 Audio stream stopped by ${data.fromUserId}`);
-    app.updateStatus(`Connected to ${app.currentCall.targetUsername || 'peer'} (server-mediated)`);
+    if (window.audioHandler) {
+        window.audioHandler.handleAudioStreamStopped(data);
+    }
 }

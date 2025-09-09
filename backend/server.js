@@ -669,9 +669,9 @@ function setupRoutes() {
             );
         });
 
-        // Handle audio data streaming (server-mediated approach)
+        // Handle PCM audio data streaming (server-mediated approach)
         socket.on('audio-data', (data) => {
-            const { callId, audioBlob, targetId } = data;
+            const { callId, audioData, sampleRate, channels, targetId } = data;
 
             // Verify the call exists and user is part of it
             db.get(
@@ -679,17 +679,19 @@ function setupRoutes() {
                 [callId, socket.userId, socket.userId],
                 (err, call) => {
                     if (!err && call) {
-                        // Relay audio to the other party
+                        // Relay PCM audio data to the other party
                         const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
 
-                        // Send audio data to target user
+                        // Send PCM audio data to target user
                         io.to(otherPartyId).emit('audio-data', {
                             callId,
-                            audioBlob,
+                            audioData,
+                            sampleRate,
+                            channels,
                             fromUserId: socket.userId
                         });
 
-                        console.log(`🔊 Relayed audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
+                        console.log(`🔊 Relayed PCM audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
                     } else {
                         console.error('❌ Invalid call for audio data:', callId);
                     }

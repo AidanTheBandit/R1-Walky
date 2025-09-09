@@ -13,12 +13,7 @@ class SimpleWalky {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.gainNode = null;
         this.volumeLevel = 2.0; // Default 200% volume boost
-        this.audioChunks = [];
         this.isRecording = false;
-        this.mediaRecorder = null;
-        this.audioQueue = [];
-        this.isPlayingAudio = false;
-        this.audioBuffer = []; // Buffer to accumulate chunks
         this.useServerMediated = true; // Enable server-mediated audio by default
         this.init();
     }
