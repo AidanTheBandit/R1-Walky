@@ -131,6 +131,16 @@ function setupRoutes() {
                 urls: 'turn:turn.numb.viagenie.ca:443?transport=tcp',
                 username: 'webrtc@live.com',
                 credential: 'muazkh'
+            },
+            {
+                urls: 'turn:turn.ekiga.net:3478',
+                username: 'ekiga',
+                credential: 'ekiga'
+            },
+            {
+                urls: 'turn:turn.quickblox.com:3478',
+                username: 'quickblox',
+                credential: 'quickblox'
             }
         ];
 
@@ -140,6 +150,8 @@ function setupRoutes() {
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
                 // TURN servers
                 ...turnServers
             ]
@@ -556,6 +568,48 @@ function setupRoutes() {
                     }
                 );
             });
+        });
+    });
+
+    // WebRTC signaling - retry call with new offer
+    app.post('/api/calls/retry', (req, res) => {
+        const { callId, offer } = req.body;
+
+        if (!callId || !offer) {
+            return res.status(400).json({ error: 'Call ID and offer required' });
+        }
+
+        getCurrentUser(req, res, (currentUser) => {
+            console.log(`User ${currentUser.username} retrying call: ${callId}`);
+
+            // Verify the call exists and user is part of it
+            db.get(
+                'SELECT * FROM active_calls WHERE id = ? AND (caller_id = ? OR callee_id = ?)',
+                [callId, currentUser.id, currentUser.id],
+                (err, call) => {
+                    if (err || !call) {
+                        console.error('Call not found for retry:', callId);
+                        return res.status(404).json({ error: 'Call not found' });
+                    }
+
+                    // Determine target user
+                    const targetId = call.caller_id === currentUser.id ? call.callee_id : call.caller_id;
+
+                    // Send retry offer to target user
+                    io.to(targetId).emit('call-retry', {
+                        callId,
+                        caller: currentUser.id,
+                        callerUsername: currentUser.username,
+                        offer
+                    });
+
+                    res.json({
+                        callId,
+                        targetId,
+                        status: 'retry-sent'
+                    });
+                }
+            );
         });
     });
 
