@@ -103,6 +103,9 @@
                 this.ringtone = document.getElementById('ringtone');
                 this.remoteAudio = document.getElementById('remote-audio');
                 
+                // Initialize volume control
+                this.setupVolumeControl();
+                
                 // Check for existing session
                 const saved = localStorage.getItem('walky_user');
                 if (saved) {
@@ -113,6 +116,34 @@
                 }
                 
                 this.updateDebug();
+            }
+
+            setupVolumeControl() {
+                const volumeSlider = document.getElementById('volume-slider');
+                const volumeValue = document.getElementById('volume-value');
+                
+                if (volumeSlider && volumeValue) {
+                    // Set initial values
+                    volumeSlider.value = this.volumeLevel;
+                    volumeValue.textContent = Math.round(this.volumeLevel * 100) + '%';
+                    
+                    // Add event listener for volume changes
+                    volumeSlider.addEventListener('input', (e) => {
+                        this.volumeLevel = parseFloat(e.target.value);
+                        volumeValue.textContent = Math.round(this.volumeLevel * 100) + '%';
+                        
+                        // Apply volume boost immediately if we have audio context
+                        if (this.gainNode) {
+                            this.gainNode.gain.value = this.volumeLevel;
+                            console.log(`🔊 Volume boosted to ${Math.round(this.volumeLevel * 100)}%`);
+                        }
+                        
+                        // Also set HTML audio element volume as fallback
+                        if (this.remoteAudio) {
+                            this.remoteAudio.volume = Math.min(this.volumeLevel, 1.0);
+                        }
+                    });
+                }
             }
 
             setupLoginListeners() {
@@ -491,6 +522,36 @@
                 });
             }
 
+            setupVolumeBoost(stream) {
+                try {
+                    // Create audio context if it doesn't exist
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    // Create gain node for volume boost
+                    if (!this.gainNode) {
+                        this.gainNode = this.audioContext.createGain();
+                        this.gainNode.gain.value = this.volumeLevel;
+                        
+                        // Create source from the stream
+                        const source = this.audioContext.createMediaStreamSource(stream);
+                        
+                        // Connect: source -> gain -> destination
+                        source.connect(this.gainNode);
+                        this.gainNode.connect(this.audioContext.destination);
+                        
+                        console.log(`🔊 Volume boost setup complete - ${Math.round(this.volumeLevel * 100)}% amplification`);
+                    }
+                } catch (error) {
+                    console.error('❌ Error setting up volume boost:', error);
+                    // Fallback: just use the HTML audio element volume
+                    if (this.remoteAudio) {
+                        this.remoteAudio.volume = Math.min(this.volumeLevel, 1.0);
+                    }
+                }
+            }
+
             updateStatus(message) {
                 document.getElementById('call-status').textContent = message;
             }
@@ -607,11 +668,14 @@
                             console.log('Remote track:', track.kind, track.label, 'enabled:', track.enabled);
                         });
                         
+                        // Connect remote stream to audio element with volume boost
+                        this.setupVolumeBoost(this.remoteStream);
+                        
                         // Connect remote stream to audio element for playback
                         this.remoteAudio.srcObject = this.remoteStream;
-                        this.remoteAudio.volume = 1.0;
+                        this.remoteAudio.volume = Math.min(this.volumeLevel, 1.0); // Set initial volume
                         this.remoteAudio.play().then(() => {
-                            console.log('Remote audio playing successfully');
+                            console.log('Remote audio playing successfully with volume boost');
                         }).catch(e => {
                             console.error('Remote audio play failed:', e);
                             // Try to play with user interaction
@@ -882,6 +946,15 @@
                 // Clear remote audio
                 if (this.remoteAudio) {
                     this.remoteAudio.srcObject = null;
+                }
+                
+                // Clean up audio context
+                if (this.audioContext && this.audioContext.state !== 'closed') {
+                    this.audioContext.close().then(() => {
+                        this.audioContext = null;
+                        this.gainNode = null;
+                        console.log('🔊 Audio context cleaned up');
+                    });
                 }
                 
                 // Hide incoming call UI
