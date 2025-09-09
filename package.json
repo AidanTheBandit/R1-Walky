@@ -1,0 +1,14 @@
+{
+  "name": "r1-walky",
+  "version": "1.0.0",
+  "description": "R1 Walkie Talkie App",
+  "scripts": {
+    "dev": "cd frontend-new && npm run dev",
+    "build": "cd frontend-new && npm run build",
+    "start": "cd backend && node server.js",
+    "dev:full": "npm run build && npm run start"
+  },
+  "keywords": ["walkie-talkie", "webrtc", "react"],
+  "author": "AidanTheBandit",
+  "license": "MIT"
+}

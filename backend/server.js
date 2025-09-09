@@ -840,12 +840,12 @@ function setupRoutes() {
         });
     });
 
-    // Serve static files from frontend directory (after API routes)
-    app.use(express.static(path.join(__dirname, '../frontend')));
+    // Serve static files from React build directory (after API routes)
+    app.use(express.static(path.join(__dirname, '../frontend-new/dist')));
 
-    // Serve the main HTML file for all other routes
+    // Serve the main HTML file for all other routes (SPA fallback)
     app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/index.html'));
+        res.sendFile(path.join(__dirname, '../frontend-new/dist/index.html'));
     });
 
     // Start server after routes are set up
