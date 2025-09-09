@@ -211,7 +211,7 @@
             renderFriends() {
                 const list = document.getElementById('friends-list');
                 if (this.friends.length === 0) {
-                    list.innerHTML = '<div class="friend-item">No friends yet</div>';
+                    list.innerHTML = '<div class="friend-item">No friends</div>';
                     return;
                 }
                 
@@ -221,7 +221,7 @@
                         <div class="friend-item" onclick="app.callFriend('${friend.username}')">
                             <span class="friend-name">${friend.username}</span>
                             <span class="friend-status" id="status-${friend.id}">●</span>
-                            <button class="unfriend-btn" onclick="event.stopPropagation(); app.unfriend('${friend.id}', '${friend.username}');">×</button>
+                            <button class="btn small" onclick="event.stopPropagation(); app.unfriend('${friend.id}', '${friend.username}');">×</button>
                         </div>`;
                 });
                 list.innerHTML = friendHtml;
@@ -413,7 +413,7 @@
                 if (!this.localStream || !this.isTransmitting) return;
                 
                 const btn = document.getElementById('ptt-button');
-                btn.textContent = 'Hold to Talk';
+                btn.textContent = 'HOLD\nTO TALK';
                 btn.classList.remove('active');
                 this.updateStatus(this.currentCall && this.currentCall.status === 'connected' ? 'Connected' : 'Ready');
                 
@@ -518,8 +518,8 @@
                     `<div class="friend-request">
                         <span>${request.username}</span>
                         <div class="request-buttons">
-                            <button class="btn-accept" onclick="app.acceptFriendRequest('${request.friendshipId}')">✓</button>
-                            <button class="btn-reject" onclick="app.rejectFriendRequest('${request.friendshipId}')">✗</button>
+                            <button class="btn small" onclick="app.acceptFriendRequest('${request.friendshipId}')">✓</button>
+                            <button class="btn small" onclick="app.rejectFriendRequest('${request.friendshipId}')">✗</button>
                         </div>
                     </div>`
                 ).join('');
@@ -883,7 +883,7 @@
                 // Reset PTT button
                 const btn = document.getElementById('ptt-button');
                 if (btn) {
-                    btn.textContent = 'Hold to Talk';
+                    btn.innerHTML = '<div>HOLD</div><div>TO TALK</div>';
                     btn.classList.remove('active');
                 }
                 
@@ -896,12 +896,12 @@
 
             showEndCallButton() {
                 const endCallBtn = document.getElementById('end-call-button');
-                endCallBtn.classList.add('active');
+                endCallBtn.style.display = 'block';
             }
             
             hideEndCallButton() {
                 const endCallBtn = document.getElementById('end-call-button');
-                endCallBtn.classList.remove('active');
+                endCallBtn.style.display = 'none';
             }
 
             updateFriendStatus(userId, isOnline) {
