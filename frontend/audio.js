@@ -32,8 +32,8 @@ class AudioHandler {
             // Create media stream source
             const source = this.audioContext.createMediaStreamSource(this.app.localStream);
             
-            // Create script processor for raw audio data
-            this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+            // Create script processor for raw audio data with smaller buffer for lower latency
+            this.scriptProcessor = this.audioContext.createScriptProcessor(1024, 1, 1);
             
             this.scriptProcessor.onaudioprocess = (event) => {
                 if (!this.app.currentCall || !this.app.isRecording) return;
@@ -41,10 +41,11 @@ class AudioHandler {
                 const inputBuffer = event.inputBuffer;
                 const inputData = inputBuffer.getChannelData(0);
                 
-                // Convert Float32Array to Int16Array for transmission
+                // Convert Float32Array to Int16Array for transmission (optimized)
                 const pcmData = new Int16Array(inputData.length);
-                for (let i = 0; i < inputData.length; i++) {
-                    pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                const len = inputData.length;
+                for (let i = 0; i < len; i++) {
+                    pcmData[i] = inputData[i] * 32767 | 0; // Fast conversion using bitwise OR
                 }
                 
                 // Send PCM data to server
@@ -176,8 +177,8 @@ class AudioHandler {
             console.log('📭 Audio queue empty, waiting...');
         }
         
-        // Schedule next playback
-        setTimeout(() => this.playAudioQueue(), 50); // 20fps audio chunks
+        // Schedule next playback - faster for smaller buffers
+        setTimeout(() => this.playAudioQueue(), 30); // ~33fps for lower latency
     }
 
     // Play PCM data using Web Audio API
@@ -192,10 +193,11 @@ class AudioHandler {
                 this.sampleRate
             );
             
-            // Fill audio buffer with PCM data
+            // Fill audio buffer with PCM data (optimized)
             const channelData = audioBuffer.getChannelData(0);
-            for (let i = 0; i < pcmData.length; i++) {
-                channelData[i] = pcmData[i] / 32768.0; // Convert back to float
+            const len = pcmData.length;
+            for (let i = 0; i < len; i++) {
+                channelData[i] = pcmData[i] / 32767.0; // Convert back to float
             }
             
             // Create buffer source
