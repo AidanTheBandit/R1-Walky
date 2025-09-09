@@ -144,9 +144,12 @@ function setupRoutes() {
 
         const userId = uuidv4();
 
+        // Convert username to lowercase for case-insensitive storage
+        const normalizedUsername = username.toLowerCase();
+        
         db.run(
             'INSERT INTO users (id, username, device_id) VALUES (?, ?, ?)',
-            [userId, username, deviceId],
+            [userId, normalizedUsername, deviceId],
             function(err) {
                 if (err) {
                     if (err.message.includes('UNIQUE constraint failed')) {
@@ -211,8 +214,8 @@ function setupRoutes() {
         getCurrentUser(req, res, (currentUser) => {
             console.log(`User ${currentUser.username} (${currentUser.device_id}) trying to add friend: ${friendUsername}`);
 
-            // Find friend
-            db.get('SELECT id, username, device_id FROM users WHERE username = ?', [friendUsername], (err, friend) => {
+            // Find friend (case-insensitive)
+            db.get('SELECT id, username, device_id FROM users WHERE username = ?', [friendUsername.toLowerCase()], (err, friend) => {
                 if (err || !friend) {
                     console.error('Friend lookup error:', err);
                     return res.status(404).json({ error: 'User not found' });
@@ -220,14 +223,13 @@ function setupRoutes() {
 
                 console.log(`Found friend: ${friend.username} (${friend.device_id})`);
 
-                if (currentUser.id === friend.id) {
-                    console.log('User tried to add themselves as friend');
+                if (friend.id === currentUser.id) {
                     return res.status(400).json({ error: 'Cannot add yourself as friend' });
                 }
 
                 // Check if friendship already exists
                 db.get(
-                    'SELECT id, status FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+                    'SELECT * FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
                     [currentUser.id, friend.id, friend.id, currentUser.id],
                     (err, existingFriendship) => {
                         if (err) {
@@ -435,6 +437,39 @@ function setupRoutes() {
         });
     });
 
+    // Delete friend (unfriend)
+    app.delete('/api/friends/:friendId', (req, res) => {
+        const { friendId } = req.params;
+        
+        getCurrentUser(req, res, (currentUser) => {
+            // Delete friendship in both directions
+            db.run(
+                'DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+                [currentUser.id, friendId, friendId, currentUser.id],
+                function(err) {
+                    if (err) {
+                        console.error('Database error removing friendship:', err);
+                        return res.status(500).json({ error: 'Database error' });
+                    }
+                    
+                    if (this.changes === 0) {
+                        return res.status(404).json({ error: 'Friendship not found' });
+                    }
+                    
+                    console.log(`Friendship removed between ${currentUser.id} and ${friendId}`);
+                    
+                    // Notify the other user
+                    io.to(friendId).emit('friendship-updated', {
+                        type: 'removed',
+                        userId: currentUser.id
+                    });
+                    
+                    res.json({ success: true, message: 'Friend removed' });
+                }
+            );
+        });
+    });
+
     // WebRTC signaling - initiate call
     app.post('/api/calls/initiate', (req, res) => {
         const { targetUsername, offer } = req.body;
@@ -446,8 +481,8 @@ function setupRoutes() {
         getCurrentUser(req, res, (currentUser) => {
             console.log(`User ${currentUser.username} initiating call to: ${targetUsername}`);
 
-            // Find target user
-            db.get('SELECT id FROM users WHERE username = ?', [targetUsername], (err, targetUser) => {
+            // Find target user (case-insensitive)
+            db.get('SELECT id FROM users WHERE username = ?', [targetUsername.toLowerCase()], (err, targetUser) => {
                 if (err || !targetUser) {
                     console.error('Target user not found:', targetUsername);
                     return res.status(404).json({ error: 'User not found' });
@@ -477,6 +512,7 @@ function setupRoutes() {
 
                         res.json({
                             callId,
+                            targetId: targetUser.id,
                             status: 'initiated'
                         });
                     }
@@ -526,9 +562,73 @@ function setupRoutes() {
                 candidate
             });
         });
+        
+        // Handle call end
+        socket.on('end-call', (data) => {
+            const { callId } = data;
+            console.log('Call ended:', callId);
+            
+            // Find the other party and notify them
+            db.get(
+                'SELECT caller_id, callee_id FROM active_calls WHERE id = ?',
+                [callId],
+                (err, call) => {
+                    if (!err && call) {
+                        const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
+                        io.to(otherPartyId).emit('call-ended', { callId });
+                        
+                        // Remove call from database
+                        db.run('DELETE FROM active_calls WHERE id = ?', [callId]);
+                    }
+                }
+            );
+        });
+        
+        // Track user online status
+        socket.on('register', (userId) => {
+            socket.userId = userId;
+            socket.join(userId);
+            console.log(`User ${userId} registered and online`);
+            
+            // Notify friends that user is online
+            db.all(`
+                SELECT DISTINCT 
+                    CASE 
+                        WHEN f.user_id = ? THEN f.friend_id
+                        ELSE f.user_id
+                    END as friend_id
+                FROM friendships f
+                WHERE (f.user_id = ? OR f.friend_id = ?) AND f.status = 'accepted'
+            `, [userId, userId, userId], (err, friends) => {
+                if (!err && friends) {
+                    friends.forEach(friend => {
+                        io.to(friend.friend_id).emit('user-online', { userId });
+                    });
+                }
+            });
+        });
 
         socket.on('disconnect', () => {
             console.log('User disconnected:', socket.id);
+            
+            if (socket.userId) {
+                // Notify friends that user went offline
+                db.all(`
+                    SELECT DISTINCT 
+                        CASE 
+                            WHEN f.user_id = ? THEN f.friend_id
+                            ELSE f.user_id
+                        END as friend_id
+                    FROM friendships f
+                    WHERE (f.user_id = ? OR f.friend_id = ?) AND f.status = 'accepted'
+                `, [socket.userId, socket.userId, socket.userId], (err, friends) => {
+                    if (!err && friends) {
+                        friends.forEach(friend => {
+                            io.to(friend.friend_id).emit('user-offline', { userId: socket.userId });
+                        });
+                    }
+                });
+            }
         });
     });
 

@@ -104,19 +104,73 @@
             background: #333;
         }
         
-        .ptt-button {
-            height: 60px;
-            background: #28a745;
-            font-size: 16px;
-            font-weight: bold;
+        .friend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        .ptt-button:hover {
-            background: #218838;
+        .friend-name {
+            flex-grow: 1;
+        }
+        
+        .friend-status {
+            color: #666;
+            margin-right: 5px;
+            font-size: 10px;
+        }
+        
+        .friend-status.online {
+            color: #28a745;
+        }
+        
+        .unfriend-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ptt-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+            transition: all 0.3s;
         }
         
         .ptt-button.active {
             background: #dc3545;
+            transform: scale(1.05);
+        }
+        
+        .end-call-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px 0;
+            width: 100%;
+            display: none;
+        }
+        
+        .end-call-button.active {
+            display: block;
         }
         
         .status {
@@ -263,6 +317,7 @@
             <input type="text" id="friend-username" placeholder="Add friend by username">
             <button id="add-friend-btn">Add Friend</button>
             <button id="ptt-button" class="ptt-button">Hold to Talk</button>
+            <button id="end-call-button" class="end-call-button">End Call</button>
             <div id="call-status" class="status"></div>
         </div>
     </div>
@@ -349,6 +404,7 @@
                 // Call handling
                 document.getElementById('answer-call').onclick = () => this.answerCall();
                 document.getElementById('reject-call').onclick = () => this.rejectCall();
+                document.getElementById('end-call-button').onclick = () => this.endCall();
                 
                 // R1 hardware button support
                 window.addEventListener('longPressStart', () => this.startTalk());
@@ -433,11 +489,16 @@
                     return;
                 }
                 
-                list.innerHTML = this.friends.map(friend => 
-                    `<div class="friend-item" onclick="app.callFriend('${friend.username}')">
-                        ${friend.username} (${friend.status || 'offline'})
-                    </div>`
-                ).join('');
+                let friendHtml = '';
+                this.friends.forEach(friend => {
+                    friendHtml += `
+                        <div class="friend-item" onclick="app.callFriend('${friend.username}')">
+                            <span class="friend-name">${friend.username}</span>
+                            <span class="friend-status" id="status-${friend.id}">●</span>
+                            <button class="unfriend-btn" onclick="event.stopPropagation(); app.unfriend('${friend.id}', '${friend.username}');">×</button>
+                        </div>`;
+                });
+                list.innerHTML = friendHtml;
             }
 
             async addFriend() {
@@ -477,19 +538,32 @@
                 try {
                     this.updateStatus(`Calling ${username}...`);
                     
-                    // Get user media first
+                    // Get user media first with more permissive settings
                     this.localStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true,
-                            sampleRate: 44100
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false,
+                            sampleRate: 48000,
+                            channelCount: 1
                         }
+                    });
+                    
+                    console.log('Got local stream with tracks:', this.localStream.getAudioTracks().length);
+                    this.localStream.getAudioTracks().forEach(track => {
+                        console.log('Local track details:', {
+                            kind: track.kind,
+                            label: track.label,
+                            enabled: track.enabled,
+                            readyState: track.readyState,
+                            settings: track.getSettings()
+                        });
                     });
                     
                     // Initially disable audio tracks (PTT mode)
                     this.localStream.getAudioTracks().forEach(track => {
                         track.enabled = false;
+                        console.log('Initially disabled track:', track.label);
                     });
                     
                     // Create peer connection
@@ -501,8 +575,13 @@
                     });
                     
                     // Create offer
-                    const offer = await this.peerConnection.createOffer();
+                    const offer = await this.peerConnection.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: false
+                    });
+                    console.log('Created offer:', offer);
                     await this.peerConnection.setLocalDescription(offer);
+                    console.log('Set local description (offer)');
                     
                     // Send call initiation to server
                     const response = await fetch('/api/calls/initiate', {
@@ -523,6 +602,7 @@
                             id: callData.callId,
                             status: 'calling',
                             targetUsername: username,
+                            targetId: callData.targetId,
                             isInitiator: true
                         };
                         this.updateStatus(`Calling ${username}...`);
@@ -536,8 +616,28 @@
                 }
             }
 
-            startTalk() {
-                if (!this.localStream || this.isTransmitting) return;
+            async startTalk() {
+                // Get microphone if we don't have it yet
+                if (!this.localStream) {
+                    try {
+                        this.localStream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: false,
+                                noiseSuppression: false,
+                                autoGainControl: false,
+                                sampleRate: 48000,
+                                channelCount: 1
+                            }
+                        });
+                        console.log('Got microphone for PTT:', this.localStream.getAudioTracks().length, 'tracks');
+                    } catch (error) {
+                        console.error('Failed to get microphone:', error);
+                        this.updateStatus('Microphone access denied');
+                        return;
+                    }
+                }
+                
+                if (this.isTransmitting) return;
                 
                 const btn = document.getElementById('ptt-button');
                 btn.textContent = 'Talking...';
@@ -547,10 +647,40 @@
                 // Enable microphone audio tracks
                 this.localStream.getAudioTracks().forEach(track => {
                     track.enabled = true;
+                    console.log('Enabled audio track:', track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
                 });
                 
+                // Check WebRTC connection and force connected state if needed
+                if (this.peerConnection && this.currentCall) {
+                    // Force connected state if we have peer connection and remote stream
+                    if (this.remoteStream && this.currentCall.status !== 'connected') {
+                        console.log('Forcing call to connected state for PTT');
+                        this.currentCall.status = 'connected';
+                        this.showEndCallButton();
+                    }
+                    
+                    console.log('=== PTT Audio Debug ===');
+                    console.log('Call status:', this.currentCall.status);
+                    console.log('Has remote stream:', !!this.remoteStream);
+                    console.log('Peer connection state:', this.peerConnection.connectionState);
+                    console.log('ICE connection state:', this.peerConnection.iceConnectionState);
+                    
+                    this.peerConnection.getSenders().forEach((sender, i) => {
+                        if (sender.track && sender.track.kind === 'audio') {
+                            console.log(`Audio sender ${i}:`, {
+                                label: sender.track.label,
+                                enabled: sender.track.enabled,
+                                readyState: sender.track.readyState,
+                                muted: sender.track.muted
+                            });
+                        }
+                    });
+                } else {
+                    console.log('PTT working but no peer connection or call');
+                }
+                
                 this.isTransmitting = true;
-                console.log('PTT Start - microphone enabled');
+                console.log('PTT Start - microphone enabled, tracks:', this.localStream.getAudioTracks().length);
             }
 
             stopTalk() {
@@ -564,10 +694,11 @@
                 // Disable microphone audio tracks to stop transmission
                 this.localStream.getAudioTracks().forEach(track => {
                     track.enabled = false;
+                    console.log('Disabled audio track:', track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
                 });
                 
                 this.isTransmitting = false;
-                console.log('PTT Stop - microphone disabled');
+                console.log('PTT Stop - microphone disabled, tracks:', this.localStream.getAudioTracks().length);
             }
 
             connectSocket() {
@@ -609,6 +740,21 @@
                 this.socket.on('ice-candidate', (data) => {
                     console.log('ICE candidate:', data);
                     this.handleIceCandidate(data);
+                });
+                
+                this.socket.on('call-ended', (data) => {
+                    console.log('Call ended by other party:', data);
+                    this.endCall();
+                });
+                
+                this.socket.on('user-online', (data) => {
+                    console.log('User came online:', data);
+                    this.updateFriendStatus(data.userId, true);
+                });
+                
+                this.socket.on('user-offline', (data) => {
+                    console.log('User went offline:', data);
+                    this.updateFriendStatus(data.userId, false);
                 });
             }
 
@@ -696,37 +842,107 @@
                 this.peerConnection = new RTCPeerConnection({
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' }
+                    ],
+                    iceCandidatePoolSize: 10
                 });
                 
                 this.peerConnection.onicecandidate = (event) => {
                     if (event.candidate && this.currentCall) {
+                        console.log('Sending ICE candidate:', event.candidate.type, event.candidate.candidate);
+                        const targetId = this.currentCall.isInitiator ? this.currentCall.targetId : this.currentCall.caller;
+                        console.log('Sending ICE candidate to:', targetId);
                         this.socket.emit('ice-candidate', {
                             callId: this.currentCall.id,
                             candidate: event.candidate,
-                            targetId: this.currentCall.targetId || this.currentCall.caller
+                            targetId: targetId
                         });
+                    } else if (!event.candidate) {
+                        console.log('ICE gathering completed');
                     }
                 };
                 
                 this.peerConnection.ontrack = (event) => {
-                    console.log('Remote stream received');
+                    console.log('Remote stream received:', event.streams.length, 'streams');
                     this.remoteStream = event.streams[0];
                     
-                    // Connect remote stream to audio element for playback
-                    this.remoteAudio.srcObject = this.remoteStream;
-                    this.remoteAudio.play().catch(e => console.log('Remote audio play failed:', e));
+                    if (this.remoteStream) {
+                        console.log('Remote stream tracks:', this.remoteStream.getTracks().length);
+                        this.remoteStream.getTracks().forEach(track => {
+                            console.log('Remote track:', track.kind, track.label, 'enabled:', track.enabled);
+                        });
+                        
+                        // Connect remote stream to audio element for playback
+                        this.remoteAudio.srcObject = this.remoteStream;
+                        this.remoteAudio.volume = 1.0;
+                        this.remoteAudio.play().then(() => {
+                            console.log('Remote audio playing successfully');
+                        }).catch(e => {
+                            console.error('Remote audio play failed:', e);
+                            // Try to play with user interaction
+                            document.addEventListener('click', () => {
+                                this.remoteAudio.play().catch(console.error);
+                            }, { once: true });
+                        });
+                    }
                     
+                    // Force call to connected state when we receive remote track
+                    console.log('Setting call status to connected due to remote track');
+                    this.currentCall.status = 'connected';
                     this.updateStatus('Connected - ready to talk');
+                    this.showEndCallButton();
                 };
                 
                 this.peerConnection.onconnectionstatechange = () => {
+                    console.log('=== Connection State Changed ===');
                     console.log('Connection state:', this.peerConnection.connectionState);
+                    console.log('ICE connection state:', this.peerConnection.iceConnectionState);
+                    console.log('ICE gathering state:', this.peerConnection.iceGatheringState);
+                    console.log('Signaling state:', this.peerConnection.signalingState);
+                    
                     if (this.peerConnection.connectionState === 'connected') {
                         this.updateStatus('Connected');
+                        this.currentCall.status = 'connected';
+                        this.showEndCallButton();
+                        
+                        // Log sender/receiver info when connected
+                        console.log('=== WebRTC Connection Established ===');
+                        this.peerConnection.getSenders().forEach((sender, i) => {
+                            if (sender.track) {
+                                console.log(`Sender ${i}:`, sender.track.kind, sender.track.label, 'enabled:', sender.track.enabled);
+                            }
+                        });
+                        this.peerConnection.getReceivers().forEach((receiver, i) => {
+                            if (receiver.track) {
+                                console.log(`Receiver ${i}:`, receiver.track.kind, receiver.track.label, 'enabled:', receiver.track.enabled);
+                            }
+                        });
                     } else if (this.peerConnection.connectionState === 'disconnected') {
                         this.endCall();
+                    }
+                };
+                
+                // Also monitor ICE connection state
+                this.peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE connection state changed:', this.peerConnection.iceConnectionState);
+                    if (this.peerConnection.iceConnectionState === 'connected' || this.peerConnection.iceConnectionState === 'completed') {
+                        console.log('ICE connection established - audio should flow now');
+                        this.currentCall.status = 'connected';
+                        this.showEndCallButton();
+                        this.updateStatus('Connected - ready to talk');
+                    } else if (this.peerConnection.iceConnectionState === 'failed') {
+                        console.log('ICE connection failed - attempting restart');
+                        this.peerConnection.restartIce();
+                    } else if (this.peerConnection.iceConnectionState === 'disconnected') {
+                        console.log('ICE connection disconnected');
+                        setTimeout(() => {
+                            if (this.peerConnection.iceConnectionState === 'disconnected') {
+                                console.log('ICE still disconnected after timeout, ending call');
+                                this.endCall();
+                            }
+                        }, 5000);
                     }
                 };
             }
@@ -757,19 +973,32 @@
                     this.ringtone.pause();
                     this.ringtone.currentTime = 0;
                     
-                    // Get user media
+                    // Get user media with same settings as caller
                     this.localStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true,
-                            sampleRate: 44100
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false,
+                            sampleRate: 48000,
+                            channelCount: 1
                         }
+                    });
+                    
+                    console.log('Got local stream for answer with tracks:', this.localStream.getAudioTracks().length);
+                    this.localStream.getAudioTracks().forEach(track => {
+                        console.log('Answer track details:', {
+                            kind: track.kind,
+                            label: track.label,
+                            enabled: track.enabled,
+                            readyState: track.readyState,
+                            settings: track.getSettings()
+                        });
                     });
                     
                     // Initially disable audio tracks (PTT mode)
                     this.localStream.getAudioTracks().forEach(track => {
                         track.enabled = false;
+                        console.log('Initially disabled track for answer:', track.label);
                     });
                     
                     // Setup peer connection
@@ -781,11 +1010,29 @@
                     });
                     
                     // Set remote description
+                    console.log('Setting remote description (offer):', this.currentCall.offer);
                     await this.peerConnection.setRemoteDescription(this.currentCall.offer);
+                    console.log('Remote description set successfully');
+                    
+                    // Process any queued ICE candidates
+                    if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
+                        console.log('Processing', this.queuedIceCandidates.length, 'queued ICE candidates');
+                        for (const candidate of this.queuedIceCandidates) {
+                            try {
+                                await this.peerConnection.addIceCandidate(candidate);
+                                console.log('Added queued ICE candidate');
+                            } catch (error) {
+                                console.error('Error adding queued ICE candidate:', error);
+                            }
+                        }
+                        this.queuedIceCandidates = [];
+                    }
                     
                     // Create answer
                     const answer = await this.peerConnection.createAnswer();
+                    console.log('Created answer:', answer);
                     await this.peerConnection.setLocalDescription(answer);
+                    console.log('Set local description (answer)');
                     
                     // Send answer via socket
                     this.socket.emit('answer-call', {
@@ -793,8 +1040,8 @@
                         answer: answer
                     });
                     
-                    this.currentCall.status = 'connected';
-                    this.updateStatus(`Connected to ${this.currentCall.callerUsername}`);
+                    // Don't set status here, let ontrack handler do it
+                    this.updateStatus(`Connecting to ${this.currentCall.callerUsername}...`);
                 } catch (error) {
                     console.error('Answer call error:', error);
                     this.rejectCall();
@@ -812,12 +1059,31 @@
             }
             
             async handleCallAnswered(data) {
-                if (!this.currentCall || this.currentCall.id !== data.callId) return;
+                if (!this.currentCall || this.currentCall.id !== data.callId) {
+                    console.log('Ignoring call answer - wrong call ID');
+                    return;
+                }
                 
                 try {
+                    console.log('Setting remote description from answer:', data.answer);
                     await this.peerConnection.setRemoteDescription(data.answer);
-                    this.currentCall.status = 'connected';
-                    this.updateStatus('Call connected');
+                    console.log('Remote description set successfully');
+                    
+                    // Process any queued ICE candidates
+                    if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
+                        console.log('Processing', this.queuedIceCandidates.length, 'queued ICE candidates');
+                        for (const candidate of this.queuedIceCandidates) {
+                            try {
+                                await this.peerConnection.addIceCandidate(candidate);
+                                console.log('Added queued ICE candidate');
+                            } catch (error) {
+                                console.error('Error adding queued ICE candidate:', error);
+                            }
+                        }
+                        this.queuedIceCandidates = [];
+                    }
+                    
+                    this.updateStatus('Call connecting...');
                 } catch (error) {
                     console.error('Handle call answered error:', error);
                     this.endCall();
@@ -825,16 +1091,38 @@
             }
             
             async handleIceCandidate(data) {
-                if (!this.peerConnection || !this.currentCall || this.currentCall.id !== data.callId) return;
+                if (!this.peerConnection || !this.currentCall || this.currentCall.id !== data.callId) {
+                    console.log('Ignoring ICE candidate - no peer connection or wrong call');
+                    return;
+                }
+                
+                // Check if we have remote description before adding ICE candidates
+                if (!this.peerConnection.remoteDescription) {
+                    console.log('No remote description yet, queuing ICE candidate');
+                    if (!this.queuedIceCandidates) {
+                        this.queuedIceCandidates = [];
+                    }
+                    this.queuedIceCandidates.push(data.candidate);
+                    return;
+                }
                 
                 try {
+                    console.log('Adding ICE candidate:', data.candidate.type, data.candidate.candidate);
                     await this.peerConnection.addIceCandidate(data.candidate);
+                    console.log('ICE candidate added successfully');
                 } catch (error) {
                     console.error('Add ICE candidate error:', error);
                 }
             }
             
             endCall() {
+                // Notify other party if call is active
+                if (this.currentCall && this.socket) {
+                    this.socket.emit('end-call', {
+                        callId: this.currentCall.id
+                    });
+                }
+                
                 // Stop ringtone
                 if (this.ringtone) {
                     this.ringtone.pause();
@@ -873,8 +1161,51 @@
                     btn.classList.remove('active');
                 }
                 
+                // Hide end call button
+                this.hideEndCallButton();
+                
                 this.updateStatus('Call ended');
                 setTimeout(() => this.updateStatus('Ready'), 2000);
+            }
+
+            showEndCallButton() {
+                const endCallBtn = document.getElementById('end-call-button');
+                endCallBtn.classList.add('active');
+            }
+            
+            hideEndCallButton() {
+                const endCallBtn = document.getElementById('end-call-button');
+                endCallBtn.classList.remove('active');
+            }
+
+            updateFriendStatus(userId, isOnline) {
+                const statusElement = document.getElementById(`status-${userId}`);
+                if (statusElement) {
+                    statusElement.className = isOnline ? 'friend-status online' : 'friend-status';
+                }
+            }
+            
+            async unfriend(friendId, friendUsername) {
+                if (!confirm(`Remove ${friendUsername} from friends?`)) return;
+                
+                try {
+                    const response = await fetch(`/api/friends/${friendId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-User-ID': this.currentUser.id
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        this.updateStatus(`Removed ${friendUsername}`);
+                        this.loadFriends();
+                    } else {
+                        this.updateStatus('Failed to remove friend');
+                    }
+                } catch (error) {
+                    console.error('Unfriend error:', error);
+                    this.updateStatus('Network error');
+                }
             }
 
             updateDebug() {
