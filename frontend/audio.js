@@ -39,6 +39,7 @@ class AudioHandler {
                 }
                 
                 // Send PCM data to server
+                console.log(`🎤 Sending ${pcmData.length} PCM samples to server`);
                 this.sendAudioData(pcmData);
             };
             
@@ -117,8 +118,11 @@ class AudioHandler {
             // Add to audio queue
             this.audioQueue.push(pcmData);
             
+            console.log(`📦 Added PCM data to queue (queue length: ${this.audioQueue.length})`);
+            
             // Start playing if not already playing
             if (!this.isPlaying) {
+                console.log('🎵 Starting playback...');
                 this.startPlayback();
             }
 
@@ -140,8 +144,8 @@ class AudioHandler {
             }
             
             this.isPlaying = true;
-            this.playAudioQueue();
             console.log('▶️ Started audio playback');
+            this.playAudioQueue();
         } catch (error) {
             console.error('❌ Error starting playback:', error);
             this.isPlaying = false;
@@ -150,11 +154,17 @@ class AudioHandler {
 
     // Play audio from queue continuously
     playAudioQueue() {
-        if (!this.isPlaying) return;
+        if (!this.isPlaying) {
+            console.log('🔇 Playback stopped');
+            return;
+        }
         
         if (this.audioQueue.length > 0) {
             const pcmData = this.audioQueue.shift();
+            console.log(`🎵 Playing PCM chunk: ${pcmData.length} samples`);
             this.playPCMData(pcmData);
+        } else {
+            console.log('📭 Audio queue empty, waiting...');
         }
         
         // Schedule next playback
@@ -164,6 +174,8 @@ class AudioHandler {
     // Play PCM data using Web Audio API
     playPCMData(pcmData) {
         try {
+            console.log(`🎶 Creating audio buffer for ${pcmData.length} samples`);
+            
             // Create audio buffer
             const audioBuffer = this.audioContext.createBuffer(
                 this.channels, 
@@ -188,7 +200,19 @@ class AudioHandler {
             // Connect and play
             source.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
+            
+            // Add error handling for the source
+            source.onended = () => {
+                console.log('🔊 PCM audio chunk finished playing');
+            };
+            
+            source.onerror = (error) => {
+                console.error('❌ Audio source error:', error);
+            };
+            
             source.start();
+            
+            console.log('🔊 PCM audio chunk played successfully');
             
         } catch (error) {
             console.error('❌ Error playing PCM data:', error);
