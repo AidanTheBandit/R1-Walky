@@ -65,7 +65,9 @@ class SimpleWalky {
         }
         
         this.updateDebug();
-    }    setupVolumeControl() {
+    }
+
+    setupVolumeControl() {
         const volumeSlider = document.getElementById('volume-slider');
         const volumeValue = document.getElementById('volume-value');
 
@@ -125,7 +127,9 @@ class SimpleWalky {
                 callsHandler.answerCall();
             }
         });
-    }    async login() {
+    }
+
+    async login() {
         const username = document.getElementById('username').value.trim();
         const status = document.getElementById('login-status');
 

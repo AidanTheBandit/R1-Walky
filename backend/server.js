@@ -669,9 +669,9 @@ function setupRoutes() {
             );
         });
 
-        // Handle PCM audio data streaming (server-mediated approach)
+        // Handle audio data streaming (both old and new formats)
         socket.on('audio-data', (data) => {
-            const { callId, audioData, sampleRate, channels, targetId } = data;
+            const { callId, audioBlob, audioData, sampleRate, channels, targetId } = data;
 
             // Verify the call exists and user is part of it
             db.get(
@@ -679,19 +679,31 @@ function setupRoutes() {
                 [callId, socket.userId, socket.userId],
                 (err, call) => {
                     if (!err && call) {
-                        // Relay PCM audio data to the other party
+                        // Relay audio data to the other party
                         const otherPartyId = call.caller_id === socket.userId ? call.callee_id : call.caller_id;
 
-                        // Send PCM audio data to target user
-                        io.to(otherPartyId).emit('audio-data', {
-                            callId,
-                            audioData,
-                            sampleRate,
-                            channels,
-                            fromUserId: socket.userId
-                        });
-
-                        console.log(`🔊 Relayed PCM audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
+                        // Check which format we received and relay accordingly
+                        if (audioData) {
+                            // New PCM format
+                            io.to(otherPartyId).emit('audio-data', {
+                                callId,
+                                audioData,
+                                sampleRate,
+                                channels,
+                                fromUserId: socket.userId
+                            });
+                            console.log(`🔊 Relayed PCM audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
+                        } else if (audioBlob) {
+                            // Old blob format - relay as is for backward compatibility
+                            io.to(otherPartyId).emit('audio-data', {
+                                callId,
+                                audioBlob,
+                                fromUserId: socket.userId
+                            });
+                            console.log(`🔊 Relayed blob audio data from ${socket.userId} to ${otherPartyId} for call ${callId}`);
+                        } else {
+                            console.error('❌ No audio data found in message');
+                        }
                     } else {
                         console.error('❌ Invalid call for audio data:', callId);
                     }

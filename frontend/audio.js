@@ -92,15 +92,27 @@ class AudioHandler {
         if (!this.app.currentCall || data.callId !== this.app.currentCall.id) return;
 
         try {
-            // Decode base64 PCM data
+            // Check if this is old format (audioBlob) or new format (audioData)
+            if (data.audioBlob) {
+                // Old format - ignore for now, we're using new PCM format
+                console.log('🔊 Received old format audio data - ignoring');
+                return;
+            }
+            
+            if (!data.audioData) {
+                console.error('❌ No audio data received');
+                return;
+            }
+
+            // Decode base64 PCM data using a more reliable method
             const binaryString = atob(data.audioData);
-            const bytes = new Uint8Array(binaryString.length);
+            const uint8Array = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+                uint8Array[i] = binaryString.charCodeAt(i);
             }
             
             // Convert to Int16Array
-            const pcmData = new Int16Array(bytes.buffer);
+            const pcmData = new Int16Array(uint8Array.buffer);
             
             // Add to audio queue
             this.audioQueue.push(pcmData);
@@ -113,6 +125,7 @@ class AudioHandler {
             console.log('🔊 Received PCM audio data from server');
         } catch (error) {
             console.error('❌ Error handling incoming audio:', error);
+            console.log('Data received:', data);
         }
     }
 
