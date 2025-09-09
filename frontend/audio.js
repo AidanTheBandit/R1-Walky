@@ -67,9 +67,16 @@ class AudioHandler {
     sendAudioData(pcmData) {
         if (!this.app.currentCall) return;
 
-        // Convert Int16Array to base64 for transmission
-        const buffer = pcmData.buffer;
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        // Convert Int16Array to Uint8Array for proper base64 encoding
+        const uint8Array = new Uint8Array(pcmData.buffer);
+        
+        // Convert to base64 using a more reliable method
+        let binary = '';
+        const len = uint8Array.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(uint8Array[i]);
+        }
+        const base64Data = btoa(binary);
 
         this.app.socket.emit('audio-data', {
             callId: this.app.currentCall.id,
