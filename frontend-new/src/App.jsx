@@ -1472,7 +1472,7 @@ function App() {
           </div>
           <div className="debug-content">
             <div className="debug-log info">
-              💡 Tip: Add "debugger" as friend to toggle this overlay
+                              � Debug Mode Active - Add "debugger" as friend to toggle this overlay
               </div>
               {debugLogs.map((log, index) => (
                 <div key={index} className={`debug-log ${log.includes('ERROR') ? 'error' : log.includes('WARN') ? 'warn' : 'info'}`}>
