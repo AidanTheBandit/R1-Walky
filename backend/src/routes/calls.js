@@ -13,6 +13,16 @@ router.post('/calls/initiate', (req, res) => {
         return res.status(400).json({ error: 'Target username and offer required' });
     }
 
+    // Validate that offer has the required WebRTC structure
+    if (!offer.type || !offer.sdp) {
+        return res.status(400).json({ error: 'Invalid WebRTC offer - missing type or sdp' });
+    }
+
+    // Validate SDP type
+    if (offer.type !== 'offer') {
+        return res.status(400).json({ error: 'Invalid WebRTC offer type - must be "offer"' });
+    }
+
     getCurrentUser(req, res, async (currentUser) => {
         try {
             console.log(`User ${currentUser.username} initiating call to: ${targetUsername}`);
@@ -97,6 +107,16 @@ router.post('/calls/answer', (req, res) => {
 
     if (!callId || !answer) {
         return res.status(400).json({ error: 'Call ID and answer required' });
+    }
+
+    // Validate that answer has the required WebRTC structure
+    if (!answer.type || !answer.sdp) {
+        return res.status(400).json({ error: 'Invalid WebRTC answer - missing type or sdp' });
+    }
+
+    // Validate SDP type
+    if (answer.type !== 'answer') {
+        return res.status(400).json({ error: 'Invalid WebRTC answer type - must be "answer"' });
     }
 
     getCurrentUser(req, res, async (currentUser) => {
