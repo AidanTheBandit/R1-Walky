@@ -196,26 +196,39 @@ async function startServer() {
 // Handle graceful shutdown
 let isShuttingDown = false;
 
-process.on('SIGINT', () => {
+const gracefulShutdown = async (signal) => {
     if (isShuttingDown) return;
     isShuttingDown = true;
-    console.log('🛑 Received SIGINT, shutting down gracefully...');
-    db.close();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-});
+    console.log(`🛑 Received ${signal}, shutting down gracefully...`);
 
-process.on('SIGTERM', () => {
-    if (isShuttingDown) return;
-    isShuttingDown = true;
-    console.log('🛑 Received SIGTERM, shutting down gracefully...');
-    db.close();
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-});
+    try {
+        // Close database connection
+        await db.close();
+        console.log('✅ Database connection closed');
+
+        // Close HTTP server
+        server.close((err) => {
+            if (err) {
+                console.error('❌ Error closing server:', err);
+                process.exit(1);
+            }
+            console.log('✅ Server closed');
+            process.exit(0);
+        });
+
+        // Force close after 10 seconds
+        setTimeout(() => {
+            console.log('⚠️ Forcing shutdown after timeout');
+            process.exit(0);
+        }, 10000);
+
+    } catch (error) {
+        console.error('❌ Error during shutdown:', error);
+        process.exit(1);
+    }
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 startServer();

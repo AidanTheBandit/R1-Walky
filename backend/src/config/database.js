@@ -60,25 +60,31 @@ class Database {
                     }
                 });
 
-                // Active calls table
-                this.db.run(`CREATE TABLE IF NOT EXISTS active_calls (
-                    id TEXT PRIMARY KEY,
-                    caller_id TEXT NOT NULL,
-                    callee_id TEXT NOT NULL,
-                    status TEXT DEFAULT 'pending',
-                    audio_stream_active INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (caller_id) REFERENCES users (id),
-                    FOREIGN KEY (callee_id) REFERENCES users (id)
-                )`, (err) => {
-                    if (err) {
-                        console.error('❌ Error creating active_calls table:', err);
-                        reject(err);
-                        return;
+                // Active calls table - recreate with proper schema
+                this.db.run(`DROP TABLE IF EXISTS active_calls`, (dropErr) => {
+                    if (dropErr) {
+                        console.error('❌ Error dropping active_calls table:', dropErr);
                     }
 
-                    console.log('✅ Database tables initialized');
-                    resolve();
+                    this.db.run(`CREATE TABLE active_calls (
+                        id TEXT PRIMARY KEY,
+                        caller_id TEXT NOT NULL,
+                        callee_id TEXT NOT NULL,
+                        status TEXT DEFAULT 'pending',
+                        audio_stream_active INTEGER DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (caller_id) REFERENCES users (id),
+                        FOREIGN KEY (callee_id) REFERENCES users (id)
+                    )`, (err) => {
+                        if (err) {
+                            console.error('❌ Error creating active_calls table:', err);
+                            reject(err);
+                            return;
+                        }
+
+                        console.log('✅ Database tables initialized with audio_stream_active column');
+                        resolve();
+                    });
                 });
             });
         });
