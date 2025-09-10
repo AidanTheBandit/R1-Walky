@@ -27,7 +27,7 @@ function App() {
   const [incomingCallData, setIncomingCallData] = useState(null)
   const [peerConnection, setPeerConnection] = useState(null)
   const [debugLogs, setDebugLogs] = useState([])
-  const [showDebug, setShowDebug] = useState(true) // Show debug by default for R1
+  const [showDebug, setShowDebug] = useState(false) // Only show when debugger friend exists
 
   const socketRef = useRef(null)
   const ringtoneRef = useRef(null)
@@ -388,6 +388,13 @@ function App() {
         const friendsData = await response.json()
         addDebugLog(`Loaded ${friendsData.length} friends: ${friendsData.map(f => f.username).join(', ')}`)
         setFriends(friendsData)
+
+        // Check if user has "debugger" as a friend to show debug overlay
+        const hasDebuggerFriend = friendsData.some(friend => friend.username.toLowerCase() === 'debugger')
+        setShowDebug(hasDebuggerFriend)
+        if (hasDebuggerFriend) {
+          addDebugLog('Debug overlay enabled - debugger friend found')
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         addDebugLog(`Failed to load friends (${response.status}): ${errorData.error}`, 'error')
@@ -1321,7 +1328,7 @@ function App() {
             </div>
             <div className="debug-content">
               <div className="debug-log info">
-                💡 Tip: Add "debugger" as friend to toggle this overlay
+                � Debug Mode Active - Add "debugger" as friend to toggle this overlay
               </div>
               {debugLogs.map((log, index) => (
                 <div key={index} className={`debug-log ${log.includes('ERROR') ? 'error' : log.includes('WARN') ? 'warn' : 'info'}`}>
