@@ -430,49 +430,65 @@ function App() {
     }
   }
 
-  const addFriend = async () => {
+  const acceptFriendRequest = async (friendshipId) => {
     if (!currentUser) {
-      addDebugLog('Cannot add friend: no current user', 'error')
+      addDebugLog('Cannot accept friend request: no current user', 'error')
       return
     }
 
-    const usernameInput = document.getElementById('friend-username')
-    if (!usernameInput) return
-
-    const username = usernameInput.value.trim()
-    if (!username) return
-
-    // Special case: "debugger" toggles debug overlay
-    if (username.toLowerCase() === 'debugger') {
-      addDebugLog('Toggling debug overlay')
-      setShowDebug(!showDebug)
-      usernameInput.value = ''
-      setCallStatus('Debug overlay toggled')
-      return
-    }
-
-    addDebugLog(`Adding friend: ${username}`)
+    addDebugLog(`Accepting friend request: ${friendshipId}`)
     try {
-      const response = await makeXMLHttpRequest('/api/friends', {
+      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/accept`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-User-ID': currentUser.id
-        },
-        body: JSON.stringify({ friendUsername: username })
+        }
       })
 
-      addDebugLog(`Add friend response: ${response.status}`)
+      addDebugLog(`Accept friend request response: ${response.status}`)
       if (response.ok) {
-        usernameInput.value = ''
-        setCallStatus('Friend request sent!')
-        setTimeout(() => loadFriends(), 1000)
+        setCallStatus('Friend request accepted!')
+        // Reload friend requests and friends list
+        loadFriendRequests()
+        setTimeout(() => loadFriends(), 500)
       } else {
         const error = await response.json()
-        setCallStatus(error.error || 'Failed to add friend')
+        setCallStatus(error.error || 'Failed to accept friend request')
       }
     } catch (error) {
-      addDebugLog(`Add friend error: ${error.message}`, 'error')
+      addDebugLog(`Accept friend request error: ${error.message}`, 'error')
+      setCallStatus('Network error')
+    }
+  }
+
+  const rejectFriendRequest = async (friendshipId) => {
+    if (!currentUser) {
+      addDebugLog('Cannot reject friend request: no current user', 'error')
+      return
+    }
+
+    addDebugLog(`Rejecting friend request: ${friendshipId}`)
+    try {
+      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.id
+        }
+      })
+
+      addDebugLog(`Reject friend request response: ${response.status}`)
+      if (response.ok) {
+        setCallStatus('Friend request rejected')
+        // Reload friend requests
+        loadFriendRequests()
+      } else {
+        const error = await response.json()
+        setCallStatus(error.error || 'Failed to reject friend request')
+      }
+    } catch (error) {
+      addDebugLog(`Reject friend request error: ${error.message}`, 'error')
       setCallStatus('Network error')
     }
   }
@@ -706,6 +722,53 @@ function App() {
     }
   }
 
+  const addFriend = async () => {
+    if (!currentUser) {
+      addDebugLog('Cannot add friend: no current user', 'error')
+      return
+    }
+
+    const friendUsername = document.getElementById('friend-username').value.trim()
+    if (!friendUsername) {
+      setCallStatus('Enter a username')
+      return
+    }
+
+    // Prevent adding yourself
+    if (friendUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+      setCallStatus('Cannot add yourself as friend')
+      return
+    }
+
+    addDebugLog(`Adding friend: ${friendUsername}`)
+    setCallStatus(`Sending friend request to ${friendUsername}...`)
+
+    try {
+      const response = await makeXMLHttpRequest('/api/friends', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.id
+        },
+        body: JSON.stringify({ friendUsername })
+      })
+
+      addDebugLog(`Add friend response: ${response.status}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCallStatus(`Friend request sent to ${friendUsername}!`)
+        // Clear the input
+        document.getElementById('friend-username').value = ''
+      } else {
+        const error = await response.json()
+        setCallStatus(error.error || 'Failed to send friend request')
+      }
+    } catch (error) {
+      addDebugLog(`Add friend error: ${error.message}`, 'error')
+      setCallStatus('Network error')
+    }
+  }
+
   const updateVolume = (e) => {
     const newVolume = parseFloat(e.target.value)
     setVolumeLevel(newVolume)
@@ -776,8 +839,20 @@ function App() {
                 <div key={request.friendshipId} className="friend-request">
                   <span>{request.username}</span>
                   <div className="request-buttons">
-                    <button className="btn small">✓</button>
-                    <button className="btn small">✗</button>
+                    <button 
+                      className="btn small accept" 
+                      onClick={() => acceptFriendRequest(request.friendshipId)}
+                      title="Accept friend request"
+                    >
+                      ✓
+                    </button>
+                    <button 
+                      className="btn small reject" 
+                      onClick={() => rejectFriendRequest(request.friendshipId)}
+                      title="Reject friend request"
+                    >
+                      ✗
+                    </button>
                   </div>
                 </div>
               ))}

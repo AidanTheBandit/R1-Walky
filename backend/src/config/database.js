@@ -4,6 +4,7 @@ class Database {
     constructor() {
         this.db = null;
         this.isInitialized = false;
+        this.dbClosed = false;
     }
 
     init() {
@@ -321,7 +322,8 @@ class Database {
 
     // Close database connection
     close() {
-        if (this.db) {
+        if (this.db && !this.dbClosed) {
+            this.dbClosed = true;
             this.db.close((err) => {
                 if (err) {
                     console.error('❌ Error closing database:', err);
@@ -329,6 +331,8 @@ class Database {
                     console.log('✅ Database connection closed');
                 }
             });
+        } else if (this.dbClosed) {
+            console.log('ℹ️ Database already closed');
         }
     }
 }

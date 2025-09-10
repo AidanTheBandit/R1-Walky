@@ -194,7 +194,11 @@ async function startServer() {
 }
 
 // Handle graceful shutdown
+let isShuttingDown = false;
+
 process.on('SIGINT', () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     console.log('🛑 Received SIGINT, shutting down gracefully...');
     db.close();
     server.close(() => {
@@ -204,6 +208,8 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     console.log('🛑 Received SIGTERM, shutting down gracefully...');
     db.close();
     server.close(() => {
