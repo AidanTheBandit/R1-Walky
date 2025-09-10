@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "cd ../frontend-new && npm run build",
+    "build-and-run": "npm run build && npm start",
+    "full-setup": "cd ../frontend-new && npm install && npm run build && cd ../backend && npm start"
   },
   "dependencies": {
     "express": "^4.18.2",

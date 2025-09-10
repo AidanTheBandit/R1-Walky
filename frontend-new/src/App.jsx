@@ -45,10 +45,13 @@ function App() {
   }
 
   const validateUser = async (user) => {
+    console.log('Validating user:', user.username)
     try {
+      console.log('Making API call to /api/users/me')
       const response = await fetch('/api/users/me', {
         headers: { 'X-User-ID': user.id }
       })
+      console.log('API response status:', response.status)
 
       if (response.ok) {
         console.log('User validated successfully')
@@ -76,17 +79,21 @@ function App() {
     }
 
     setLoginStatus('Joining...')
+    console.log('Attempting login for user:', username)
 
     try {
       const deviceId = 'R1-' + Date.now()
+      console.log('Making API call to /api/users with deviceId:', deviceId)
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, deviceId })
       })
+      console.log('Login API response status:', response.status)
 
       if (response.ok) {
         const user = await response.json()
+        console.log('Login successful, user:', user)
         setCurrentUser(user)
         localStorage.setItem('walky_user', JSON.stringify(user))
         setShowMainScreen(true)
@@ -95,6 +102,7 @@ function App() {
         connectSocket()
       } else {
         const error = await response.json()
+        console.log('Login failed with error:', error)
         setLoginStatus(error.error || 'Login failed')
       }
     } catch (error) {
@@ -104,16 +112,25 @@ function App() {
   }
 
   const loadFriends = async () => {
-    if (!currentUser) return
+    if (!currentUser) {
+      console.log('No current user, skipping loadFriends')
+      return
+    }
 
+    console.log('Loading friends for user:', currentUser.username)
     try {
+      console.log('Making API call to /api/friends')
       const response = await fetch('/api/friends', {
         headers: { 'X-User-ID': currentUser.id }
       })
+      console.log('Friends API response status:', response.status)
 
       if (response.ok) {
         const friendsData = await response.json()
+        console.log('Friends loaded:', friendsData)
         setFriends(friendsData)
+      } else {
+        console.log('Failed to load friends, status:', response.status)
       }
     } catch (error) {
       console.error('Load friends error:', error)
@@ -121,16 +138,25 @@ function App() {
   }
 
   const loadFriendRequests = async () => {
-    if (!currentUser) return
+    if (!currentUser) {
+      console.log('No current user, skipping loadFriendRequests')
+      return
+    }
 
+    console.log('Loading friend requests for user:', currentUser.username)
     try {
+      console.log('Making API call to /api/friends/requests')
       const response = await fetch('/api/friends/requests', {
         headers: { 'X-User-ID': currentUser.id }
       })
+      console.log('Friend requests API response status:', response.status)
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Friend requests loaded:', data)
         setFriendRequests(data.requests || [])
+      } else {
+        console.log('Failed to load friend requests, status:', response.status)
       }
     } catch (error) {
       console.error('Load friend requests error:', error)
@@ -168,13 +194,20 @@ function App() {
   }
 
   const connectSocket = () => {
-    if (!currentUser) return
+    if (!currentUser) {
+      console.log('No current user, skipping socket connection')
+      return
+    }
 
-    console.log('Connecting to socket...')
-    socketRef.current = io()
+    console.log('Connecting to socket for user:', currentUser.username)
+    // Use relative URL so Vite proxy handles it
+    socketRef.current = io('/', {
+      path: '/socket.io',
+      transports: ['websocket', 'polling']
+    })
 
     socketRef.current.on('connect', () => {
-      console.log('Socket connected')
+      console.log('Socket connected successfully')
       setConnectionStatus('Online')
       socketRef.current.emit('register', currentUser.id)
     })
