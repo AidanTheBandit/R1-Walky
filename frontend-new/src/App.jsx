@@ -24,6 +24,8 @@ function App() {
   const [showMainScreen, setShowMainScreen] = useState(false)
   const [showIncomingCall, setShowIncomingCall] = useState(false)
   const [incomingCaller, setIncomingCaller] = useState('')
+  const [incomingCallData, setIncomingCallData] = useState(null)
+  const [peerConnection, setPeerConnection] = useState(null)
   const [debugLogs, setDebugLogs] = useState([])
   const [showDebug, setShowDebug] = useState(true) // Show debug by default for R1
 
@@ -503,8 +505,17 @@ function App() {
       // Call events
       socketRef.current.on('incoming-call', (data) => {
         addDebugLog(`Incoming call from: ${data.callerUsername}`)
+        setIncomingCaller(data.callerUsername)
+        setIncomingCallData(data)
+        setShowIncomingCall(true)
         setCallStatus(`Incoming call from ${data.callerUsername}`)
-        // Handle incoming call logic here
+        
+        // Play ringer
+        if (ringtoneRef.current) {
+          ringtoneRef.current.play().catch(err => {
+            addDebugLog(`Failed to play ringer: ${err.message}`, 'error')
+          })
+        }
       })
 
       socketRef.current.on('call-answered', (data) => {
@@ -542,14 +553,35 @@ function App() {
       // User status events
       socketRef.current.on('user-online', (data) => {
         addDebugLog(`User ${data.userId} came online`)
-        // Update friend status
-        loadFriends(user)
+        // Update friend status in the friends list
+        setFriends(prevFriends => 
+          prevFriends.map(friend => 
+            friend.id === data.userId 
+              ? { ...friend, status: 'online' }
+              : friend
+          )
+        )
       })
 
       socketRef.current.on('user-offline', (data) => {
         addDebugLog(`User ${data.userId} went offline`)
-        // Update friend status
-        loadFriends(user)
+        // Update friend status in the friends list
+        setFriends(prevFriends => 
+          prevFriends.map(friend => 
+            friend.id === data.userId 
+              ? { ...friend, status: 'offline' }
+              : friend
+          )
+        )
+      })
+
+      // ICE candidate handling for WebRTC
+      socketRef.current.on('ice-candidate', (data) => {
+        addDebugLog('Received ICE candidate')
+        if (peerConnection && data.candidate) {
+          peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+            .catch(err => addDebugLog(`Failed to add ICE candidate: ${err.message}`, 'error'))
+        }
       })
 
     } else {
@@ -617,15 +649,135 @@ function App() {
     }
   }
 
+  const acceptCall = async () => {
+    if (!incomingCallData) return
+
+    try {
+      addDebugLog('Accepting incoming call')
+      
+      // Stop ringer
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause()
+        ringtoneRef.current.currentTime = 0
+      }
+
+      // Get user media for the call
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 16000,
+          channelCount: 1
+        }
+      })
+
+      localStreamRef.current = stream
+
+      // Create WebRTC peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      })
+
+      // Add local stream to peer connection
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        addDebugLog('Received remote stream')
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0]
+        }
+      }
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          // Send ICE candidate to the other peer via socket
+          socketRef.current.emit('ice-candidate', {
+            callId: incomingCallData.callId,
+            candidate: event.candidate
+          })
+        }
+      }
+
+      // Set remote description from offer
+      await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer))
+      
+      // Create answer
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+
+      // Send answer back to caller
+      socketRef.current.emit('answer-call', {
+        callId: incomingCallData.callId,
+        answer: answer
+      })
+
+      // Update state
+      setPeerConnection(pc)
+      setCurrentCall({
+        id: incomingCallData.callId,
+        status: 'connected',
+        targetUsername: incomingCallData.callerUsername,
+        targetId: incomingCallData.caller,
+        isInitiator: false,
+        mode: 'webrtc'
+      })
+
+      setShowIncomingCall(false)
+      setIncomingCaller('')
+      setIncomingCallData(null)
+      setCallStatus('Call connected')
+
+    } catch (error) {
+      addDebugLog(`Failed to accept call: ${error.message}`, 'error')
+      setCallStatus('Failed to accept call')
+      rejectCall()
+    }
+  }
+
+  const rejectCall = () => {
+    addDebugLog('Rejecting incoming call')
+    
+    // Stop ringer
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause()
+      ringtoneRef.current.currentTime = 0
+    }
+
+    // Send call rejection
+    if (incomingCallData && socketRef.current) {
+      socketRef.current.emit('end-call', { callId: incomingCallData.callId })
+    }
+
+    setShowIncomingCall(false)
+    setIncomingCaller('')
+    setIncomingCallData(null)
+    setCallStatus('Call rejected')
+  }
+
   const endCall = () => {
+    addDebugLog('Ending call')
+    
+    // Stop local media
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop())
       localStreamRef.current = null
     }
 
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close()
-      peerConnectionRef.current = null
+    // Close peer connection
+    if (peerConnection) {
+      peerConnection.close()
+      setPeerConnection(null)
+    }
+
+    // Send end call event
+    if (currentCall && socketRef.current) {
+      socketRef.current.emit('end-call', { callId: currentCall.id })
     }
 
     setCurrentCall(null)
@@ -804,6 +956,26 @@ function App() {
           </div>
         </div>
 
+        {/* Incoming Call Screen */}
+        {showIncomingCall && (
+          <div className="incoming-call-overlay">
+            <div className="incoming-call-content">
+              <div className="caller-info">
+                <h2>Incoming Call</h2>
+                <div className="caller-name">{incomingCaller}</div>
+              </div>
+              <div className="call-buttons">
+                <button className="btn call-accept" onClick={acceptCall}>
+                  📞 Accept
+                </button>
+                <button className="btn call-reject" onClick={rejectCall}>
+                  📞 Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Debug Overlay */}
         {showDebug && (
           <div className="debug-overlay">
@@ -928,6 +1100,26 @@ function App() {
       </audio>
       <audio ref={remoteAudioRef} autoplay></audio>
 
+      {/* Incoming Call Overlay */}
+      {showIncomingCall && (
+        <div className="incoming-call-overlay">
+          <div className="incoming-call-content">
+            <div className="caller-info">
+              <h2>Incoming Call</h2>
+              <div className="caller-name">{incomingCaller}</div>
+            </div>
+            <div className="call-buttons">
+              <button className="btn call-accept" onClick={acceptCall}>
+                📞 Accept
+              </button>
+              <button className="btn call-reject" onClick={rejectCall}>
+                📞 Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Debug Overlay */}
       {showDebug && (
         <div className="debug-overlay">
@@ -938,15 +1130,15 @@ function App() {
           <div className="debug-content">
             <div className="debug-log info">
               💡 Tip: Add "debugger" as friend to toggle this overlay
-            </div>
-            {debugLogs.map((log, index) => (
-              <div key={index} className={`debug-log ${log.includes('ERROR') ? 'error' : log.includes('WARN') ? 'warn' : 'info'}`}>
-                {log}
               </div>
-            ))}
+              {debugLogs.map((log, index) => (
+                <div key={index} className={`debug-log ${log.includes('ERROR') ? 'error' : log.includes('WARN') ? 'warn' : 'info'}`}>
+                  {log}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   )
 }
