@@ -489,15 +489,21 @@ function App() {
     
     // Try socket.io first, fallback to native WebSocket
     if (typeof io !== 'undefined') {
-      addDebugLog('Using socket.io')
+      addDebugLog('Using socket.io for connection')
       socketRef.current = io('/', {
         path: '/socket.io',
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        timeout: 5000,
+        forceNew: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       })
 
       socketRef.current.on('connect', () => {
         addDebugLog('Socket.io connected successfully')
         setConnectionStatus('Online')
+        addDebugLog(`Registering user: ${user.id}`)
         socketRef.current.emit('register', user.id)
       })
 
@@ -506,75 +512,96 @@ function App() {
         setConnectionStatus('Offline')
       })
 
-      socketRef.current.on('disconnect', () => {
-        addDebugLog('Socket.io disconnected', 'error')
+      socketRef.current.on('disconnect', (reason) => {
+        addDebugLog(`Socket.io disconnected: ${reason}`, 'error')
+        setConnectionStatus('Offline')
+      })
+
+      socketRef.current.on('reconnect', (attemptNumber) => {
+        addDebugLog(`Socket.io reconnected after ${attemptNumber} attempts`)
+        setConnectionStatus('Online')
+        // Re-register after reconnection
+        socketRef.current.emit('register', user.id)
+      })
+
+      socketRef.current.on('reconnect_error', (error) => {
+        addDebugLog(`Socket.io reconnection error: ${error.message}`, 'error')
         setConnectionStatus('Offline')
       })
 
       // Friend request events
       socketRef.current.on('friend-request-received', (data) => {
         addDebugLog(`Friend request received from: ${data.fromUser?.username}`)
-        loadFriendRequests()
+        loadFriendRequests(user)
         setCallStatus(`Friend request from ${data.fromUser?.username}`)
       })
 
       socketRef.current.on('friend-request-accepted', (data) => {
         addDebugLog(`Friend request accepted by: ${data.accepter?.username}`)
-        loadFriends()
+        loadFriends(user)
         setCallStatus(`${data.accepter?.username} accepted your request!`)
       })
 
       socketRef.current.on('friendship-updated', (data) => {
         addDebugLog('Friendship updated')
-        loadFriends()
+        loadFriends(user)
       })
-    } else if (typeof WebSocket !== 'undefined') {
-      addDebugLog('Using native WebSocket fallback')
-      // Fallback to native WebSocket
-      const wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/socket.io/?EIO=3&transport=websocket'
-      socketRef.current = new WebSocket(wsUrl)
 
-      socketRef.current.onopen = function() {
-        addDebugLog('WebSocket connected successfully')
-        setConnectionStatus('Online')
-        // Send registration message
-        socketRef.current.send(JSON.stringify({
-          type: 'register',
-          userId: user.id
-        }))
-      }
+      // Call events
+      socketRef.current.on('incoming-call', (data) => {
+        addDebugLog(`Incoming call from: ${data.callerUsername}`)
+        setCallStatus(`Incoming call from ${data.callerUsername}`)
+        // Handle incoming call logic here
+      })
 
-      socketRef.current.onmessage = function(event) {
-        try {
-          const data = JSON.parse(event.data)
-          addDebugLog(`WebSocket message received: ${data.type}`)
-          
-          if (data.type === 'friend-request-received') {
-            loadFriendRequests()
-            setCallStatus(`Friend request from ${data.fromUser?.username}`)
-          } else if (data.type === 'friend-request-accepted') {
-            loadFriends()
-            setCallStatus(`${data.accepter?.username} accepted your request!`)
-          } else if (data.type === 'friendship-updated') {
-            loadFriends()
-          }
-        } catch (e) {
-          addDebugLog(`Failed to parse WebSocket message: ${e.message}`, 'error')
-        }
-      }
+      socketRef.current.on('call-answered', (data) => {
+        addDebugLog('Call answered by recipient')
+        setCallStatus('Call connected')
+      })
 
-      socketRef.current.onclose = function() {
-        addDebugLog('WebSocket disconnected', 'error')
-        setConnectionStatus('Offline')
-      }
+      socketRef.current.on('call-ended', (data) => {
+        addDebugLog('Call ended')
+        setCallStatus('Call ended')
+        endCall()
+      })
 
-      socketRef.current.onerror = function(error) {
-        addDebugLog(`WebSocket error: ${error.message}`, 'error')
-        setConnectionStatus('Offline')
-      }
+      socketRef.current.on('call-retry', (data) => {
+        addDebugLog('Call retry received')
+        // Handle call retry logic here
+      })
+
+      // Audio streaming events
+      socketRef.current.on('audio-data', (data) => {
+        addDebugLog('Audio data received')
+        // Handle incoming audio data
+      })
+
+      socketRef.current.on('audio-stream-started', (data) => {
+        addDebugLog('Audio stream started')
+        setCallStatus('Audio streaming active')
+      })
+
+      socketRef.current.on('audio-stream-stopped', (data) => {
+        addDebugLog('Audio stream stopped')
+        setCallStatus('Audio streaming stopped')
+      })
+
+      // User status events
+      socketRef.current.on('user-online', (data) => {
+        addDebugLog(`User ${data.userId} came online`)
+        // Update friend status
+        loadFriends(user)
+      })
+
+      socketRef.current.on('user-offline', (data) => {
+        addDebugLog(`User ${data.userId} went offline`)
+        // Update friend status
+        loadFriends(user)
+      })
+
     } else {
-      addDebugLog('Neither socket.io nor WebSocket available', 'error')
-      setConnectionStatus('Offline')
+      addDebugLog('Socket.io not available, WebSocket features will not work', 'error')
+      setConnectionStatus('Offline - No WebSocket Support')
     }
   }
 
