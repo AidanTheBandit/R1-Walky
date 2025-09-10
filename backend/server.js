@@ -150,6 +150,12 @@ app.post('/api/auth/verify-device', (req, res) => {
     });
 });
 
+// Make io available to routes first
+app.use('/api', (req, res, next) => {
+    req.io = io;
+    next();
+});
+
 // Apply auth middleware to all /api routes
 app.use('/api', userAuthMiddleware);
 
@@ -157,12 +163,6 @@ app.use('/api', userAuthMiddleware);
 app.use('/api', userRoutes);
 app.use('/api', friendRoutes);
 app.use('/api', callRoutes);
-
-// Make io available to routes
-app.use('/api', (req, res, next) => {
-    req.io = io;
-    next();
-});
 
 // Serve static files from React build directory (after API routes)
 app.use(express.static(path.join(__dirname, '../frontend-new/dist')));
