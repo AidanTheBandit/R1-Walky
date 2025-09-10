@@ -16,6 +16,168 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Basic polyfills for old browsers
+      if (!window.fetch) {
+        console.log('Adding fetch polyfill');
+        window.fetch = function(url, options) {
+          return new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(options && options.method || 'GET', url, true);
+
+            if (options && options.headers) {
+              for (var key in options.headers) {
+                if (options.headers.hasOwnProperty(key)) {
+                  xhr.setRequestHeader(key, options.headers[key]);
+                }
+              }
+            }
+
+            xhr.onload = function() {
+              var response = {
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                json: function() {
+                  try {
+                    return Promise.resolve(JSON.parse(xhr.responseText || '{}'));
+                  } catch (e) {
+                    return Promise.reject(new Error('Invalid JSON response'));
+                  }
+                }
+              };
+              resolve(response);
+            };
+
+            xhr.onerror = function() {
+              reject(new Error('Network error'));
+            };
+
+            xhr.timeout = 10000;
+            xhr.ontimeout = function() {
+              reject(new Error('Request timeout'));
+            };
+
+            if (options && options.body) {
+              xhr.send(options.body);
+            } else {
+              xhr.send();
+            }
+          });
+        };
+      }
+
+      if (!window.Promise) {
+        console.log('Adding Promise polyfill');
+        // Simple Promise polyfill - very basic implementation
+        window.Promise = function(executor) {
+          var self = this;
+          self.status = 'pending';
+          self.value = null;
+          self.reason = null;
+          self.onFulfilled = [];
+          self.onRejected = [];
+
+          function resolve(value) {
+            if (self.status === 'pending') {
+              self.status = 'fulfilled';
+              self.value = value;
+              self.onFulfilled.forEach(function(fn) { fn(value); });
+            }
+          }
+
+          function reject(reason) {
+            if (self.status === 'pending') {
+              self.status = 'rejected';
+              self.reason = reason;
+              self.onRejected.forEach(function(fn) { fn(reason); });
+            }
+          }
+
+          try {
+            executor(resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        };
+
+        window.Promise.prototype.then = function(onFulfilled, onRejected) {
+          var self = this;
+          return new window.Promise(function(resolve, reject) {
+            function handleFulfilled(value) {
+              try {
+                if (typeof onFulfilled === 'function') {
+                  var result = onFulfilled(value);
+                  if (result && typeof result.then === 'function') {
+                    result.then(resolve, reject);
+                  } else {
+                    resolve(result);
+                  }
+                } else {
+                  resolve(value);
+                }
+              } catch (e) {
+                reject(e);
+              }
+            }
+
+            function handleRejected(reason) {
+              try {
+                if (typeof onRejected === 'function') {
+                  var result = onRejected(reason);
+                  if (result && typeof result.then === 'function') {
+                    result.then(resolve, reject);
+                  } else {
+                    resolve(result);
+                  }
+                } else {
+                  reject(reason);
+                }
+              } catch (e) {
+                reject(e);
+              }
+            }
+
+            if (self.status === 'fulfilled') {
+              setTimeout(function() { handleFulfilled(self.value); }, 0);
+            } else if (self.status === 'rejected') {
+              setTimeout(function() { handleRejected(self.reason); }, 0);
+            } else {
+              self.onFulfilled.push(handleFulfilled);
+              self.onRejected.push(handleRejected);
+            }
+          });
+        };
+
+        window.Promise.prototype.catch = function(onRejected) {
+          return this.then(null, onRejected);
+        };
+
+        window.Promise.resolve = function(value) {
+          return new window.Promise(function(resolve) { resolve(value); });
+        };
+
+        window.Promise.reject = function(reason) {
+          return new window.Promise(function(resolve, reject) { reject(reason); });
+        };
+      }
+
+      // Polyfill for Object.entries if not available
+      if (!Object.entries) {
+        console.log('Adding Object.entries polyfill');
+        Object.entries = function(obj) {
+          var entries = [];
+          for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+              entries.push([key, obj[key]]);
+            }
+          }
+          return entries;
+        };
+      }
+
+      console.log('Polyfills loaded');
+    </script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
