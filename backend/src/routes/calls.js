@@ -13,14 +13,20 @@ router.post('/calls/initiate', (req, res) => {
         return res.status(400).json({ error: 'Target username and offer required' });
     }
 
-    // Validate that offer has the required WebRTC structure
-    if (!offer.type || !offer.sdp) {
-        return res.status(400).json({ error: 'Invalid WebRTC offer - missing type or sdp' });
-    }
+    // Support both WebRTC and server-mediated calls
+    if (offer.type === 'server-mediated') {
+        // Server-mediated call - no WebRTC validation needed
+        console.log('Server-mediated call initiation');
+    } else {
+        // WebRTC call - validate offer structure
+        if (!offer.type || !offer.sdp) {
+            return res.status(400).json({ error: 'Invalid WebRTC offer - missing type or sdp' });
+        }
 
-    // Validate SDP type
-    if (offer.type !== 'offer') {
-        return res.status(400).json({ error: 'Invalid WebRTC offer type - must be "offer"' });
+        // Validate SDP type
+        if (offer.type !== 'offer') {
+            return res.status(400).json({ error: 'Invalid WebRTC offer type - must be "offer"' });
+        }
     }
 
     getCurrentUser(req, res, async (currentUser) => {
@@ -109,14 +115,20 @@ router.post('/calls/answer', (req, res) => {
         return res.status(400).json({ error: 'Call ID and answer required' });
     }
 
-    // Validate that answer has the required WebRTC structure
-    if (!answer.type || !answer.sdp) {
-        return res.status(400).json({ error: 'Invalid WebRTC answer - missing type or sdp' });
-    }
+    // Support both WebRTC and server-mediated calls
+    if (answer.type === 'server-mediated') {
+        // Server-mediated call - no WebRTC validation needed
+        console.log('Server-mediated call answer');
+    } else {
+        // WebRTC call - validate answer structure
+        if (!answer.type || !answer.sdp) {
+            return res.status(400).json({ error: 'Invalid WebRTC answer - missing type or sdp' });
+        }
 
-    // Validate SDP type
-    if (answer.type !== 'answer') {
-        return res.status(400).json({ error: 'Invalid WebRTC answer type - must be "answer"' });
+        // Validate SDP type
+        if (answer.type !== 'answer') {
+            return res.status(400).json({ error: 'Invalid WebRTC answer type - must be "answer"' });
+        }
     }
 
     getCurrentUser(req, res, async (currentUser) => {
@@ -235,6 +247,86 @@ router.post('/calls/end', (req, res) => {
             });
         } catch (err) {
             console.error('Database error ending call:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+});
+
+// Audio streaming - start audio stream
+router.post('/calls/start-audio', (req, res) => {
+    const { callId } = req.body;
+
+    if (!callId) {
+        return res.status(400).json({ error: 'Call ID required' });
+    }
+
+    getCurrentUser(req, res, async (currentUser) => {
+        try {
+            console.log(`User ${currentUser.username} starting audio stream for call: ${callId}`);
+
+            // Verify the call exists and user is part of it
+            const call = await db.getCall(callId);
+            if (!call || (call.caller_id !== currentUser.id && call.callee_id !== currentUser.id)) {
+                console.error('Call not found for audio stream:', callId);
+                return res.status(404).json({ error: 'Call not found' });
+            }
+
+            // Update call audio stream status
+            await db.updateCallAudioStream(callId, true);
+
+            // Determine target user
+            const targetId = call.caller_id === currentUser.id ? call.callee_id : call.caller_id;
+
+            // Notify other user that audio stream started
+            req.io.to(targetId).emit('audio-stream-started', {
+                callId,
+                from: currentUser.id,
+                fromUsername: currentUser.username
+            });
+
+            res.json({ status: 'audio-stream-started' });
+        } catch (err) {
+            console.error('Database error starting audio stream:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+});
+
+// Audio streaming - stop audio stream
+router.post('/calls/stop-audio', (req, res) => {
+    const { callId } = req.body;
+
+    if (!callId) {
+        return res.status(400).json({ error: 'Call ID required' });
+    }
+
+    getCurrentUser(req, res, async (currentUser) => {
+        try {
+            console.log(`User ${currentUser.username} stopping audio stream for call: ${callId}`);
+
+            // Verify the call exists and user is part of it
+            const call = await db.getCall(callId);
+            if (!call || (call.caller_id !== currentUser.id && call.callee_id !== currentUser.id)) {
+                console.error('Call not found for audio stream:', callId);
+                return res.status(404).json({ error: 'Call not found' });
+            }
+
+            // Update call audio stream status
+            await db.updateCallAudioStream(callId, false);
+
+            // Determine target user
+            const targetId = call.caller_id === currentUser.id ? call.callee_id : call.caller_id;
+
+            // Notify other user that audio stream stopped
+            req.io.to(targetId).emit('audio-stream-stopped', {
+                callId,
+                from: currentUser.id,
+                fromUsername: currentUser.username
+            });
+
+            res.json({ status: 'audio-stream-stopped' });
+        } catch (err) {
+            console.error('Database error stopping audio stream:', err);
             return res.status(500).json({ error: 'Database error' });
         }
     });

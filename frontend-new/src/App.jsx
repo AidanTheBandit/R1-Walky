@@ -520,18 +520,11 @@ function App() {
 
       socketRef.current.on('call-answered', async (data) => {
         addDebugLog('Call answered by recipient')
-        setCallStatus(`${data.answererUsername} answered`)
+        setCallStatus(`Connected to ${data.answererUsername}`)
         
-        // Set remote description (answer) for the caller
-        if (peerConnectionRef.current && data.answer) {
-          try {
-            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer))
-            addDebugLog('Set remote description from answer')
-            setCallStatus(`Connected to ${data.answererUsername}`)
-          } catch (error) {
-            addDebugLog(`Failed to set remote description: ${error.message}`, 'error')
-            endCall()
-          }
+        // For server-mediated calls, just update status
+        if (currentCall) {
+          setCurrentCall(prev => ({ ...prev, status: 'connected' }))
         }
       })
 
@@ -541,17 +534,22 @@ function App() {
         endCall()
       })
 
-      // ICE candidate handling for WebRTC
-      socketRef.current.on('ice-candidate', async (data) => {
-        addDebugLog('Received ICE candidate')
-        if (peerConnectionRef.current && data.candidate) {
-          try {
-            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate))
-            addDebugLog('Added ICE candidate successfully')
-          } catch (error) {
-            addDebugLog(`Failed to add ICE candidate: ${error.message}`, 'error')
-          }
+      // Audio streaming events for server-mediated calls
+      socketRef.current.on('audio-data', (data) => {
+        addDebugLog('Received audio data from server')
+        if (data.audioData && data.sampleRate) {
+          playReceivedAudio(data.audioData, data.sampleRate)
         }
+      })
+
+      socketRef.current.on('audio-stream-started', (data) => {
+        addDebugLog(`${data.fromUsername} started speaking`)
+        setCallStatus(`${data.fromUsername} is speaking...`)
+      })
+
+      socketRef.current.on('audio-stream-stopped', (data) => {
+        addDebugLog(`${data.fromUsername} stopped speaking`)
+        setCallStatus(`Connected to ${currentCall?.targetUsername || 'user'}`)
       })
 
       // User status events
@@ -585,27 +583,14 @@ function App() {
     }
   }
 
-  // WebRTC configuration
-  const rtcConfig = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'turn:turn.quickblox.com:3478', username: 'quickblox', credential: 'quickblox' },
-      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
-    ],
-    iceCandidatePoolSize: 10
-  }
-
   const callFriend = async (friend) => {
     if (!currentUser || currentCall) return
 
     try {
       setCallStatus(`Calling ${friend.username}...`)
-      addDebugLog(`Initiating call to ${friend.username}`)
+      addDebugLog(`Initiating server-mediated call to ${friend.username}`)
 
-      // Get user media first
+      // Get user media for audio
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -624,71 +609,7 @@ function App() {
         track.enabled = false
       })
 
-      // Create RTCPeerConnection
-      const pc = new RTCPeerConnection(rtcConfig)
-      peerConnectionRef.current = pc
-      setPeerConnection(pc)
-
-      // Add local stream to peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream)
-        addDebugLog(`Added ${track.kind} track to peer connection`)
-      })
-
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        addDebugLog('Received remote stream')
-        const [remoteStream] = event.streams
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream
-          remoteAudioRef.current.volume = volumeLevel
-          addDebugLog('Set remote audio stream')
-        }
-      }
-
-      // Handle ICE candidates
-      pc.onicecandidate = async (event) => {
-        if (event.candidate) {
-          addDebugLog('Sending ICE candidate')
-          try {
-            await makeXMLHttpRequest('/api/calls/ice-candidate', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-User-ID': currentUser.id
-              },
-              body: JSON.stringify({
-                callId: currentCall?.id,
-                candidate: event.candidate
-              })
-            })
-          } catch (error) {
-            addDebugLog(`Failed to send ICE candidate: ${error.message}`, 'error')
-          }
-        }
-      }
-
-      // Monitor connection state
-      pc.onconnectionstatechange = () => {
-        addDebugLog(`Connection state changed: ${pc.connectionState}`)
-        if (pc.connectionState === 'connected') {
-          setCallStatus(`Connected to ${friend.username}`)
-        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          setCallStatus('Call disconnected')
-          endCall()
-        }
-      }
-
-      // Create offer
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: false
-      })
-      
-      await pc.setLocalDescription(offer)
-      addDebugLog('Created and set local description (offer)')
-
-      // Send call initiation with offer
+      // Send call initiation (server-mediated, no WebRTC offer needed)
       const response = await makeXMLHttpRequest('/api/calls/initiate', {
         method: 'POST',
         headers: {
@@ -697,7 +618,7 @@ function App() {
         },
         body: JSON.stringify({
           targetUsername: friend.username,
-          offer: offer
+          offer: { type: 'server-mediated', mode: 'audio-relay' }
         })
       })
 
@@ -709,10 +630,13 @@ function App() {
           targetUsername: friend.username,
           targetId: callData.targetId,
           isInitiator: true,
-          mode: 'webrtc'
+          mode: 'server-mediated'
         })
         setCallStatus(`Calling ${friend.username}...`)
-        addDebugLog(`Call initiated with ID: ${callData.callId}`)
+        addDebugLog(`Server-mediated call initiated with ID: ${callData.callId}`)
+
+        // Set up audio processing for server relay
+        setupAudioProcessing(callData.callId)
       } else {
         throw new Error('Failed to initiate call')
       }
@@ -723,11 +647,87 @@ function App() {
     }
   }
 
+  // Audio processing setup for server-mediated calls
+  const setupAudioProcessing = (callId) => {
+    if (!localStreamRef.current) {
+      addDebugLog('No local stream available for audio processing', 'error')
+      return
+    }
+
+    try {
+      // Create Web Audio API context for processing
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      const source = audioContext.createMediaStreamSource(localStreamRef.current)
+      
+      // Create a ScriptProcessor or AudioWorklet for audio data extraction
+      const processor = audioContext.createScriptProcessor(4096, 1, 1)
+      
+      processor.onaudioprocess = (event) => {
+        if (isPTTPressed && currentCall?.id === callId) {
+          const inputBuffer = event.inputBuffer
+          const inputData = inputBuffer.getChannelData(0)
+          
+          // Convert float32 to int16 for efficient transmission
+          const pcmData = new Int16Array(inputData.length)
+          for (let i = 0; i < inputData.length; i++) {
+            pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768))
+          }
+          
+          // Send audio data through socket
+          if (socketRef.current) {
+            socketRef.current.emit('audio-data', {
+              callId: callId,
+              audioData: Array.from(pcmData),
+              sampleRate: audioContext.sampleRate,
+              channels: 1
+            })
+          }
+        }
+      }
+      
+      source.connect(processor)
+      processor.connect(audioContext.destination)
+      
+      // Store for cleanup
+      currentCall.audioContext = audioContext
+      currentCall.processor = processor
+      
+      addDebugLog('Audio processing setup completed')
+    } catch (error) {
+      addDebugLog(`Failed to setup audio processing: ${error.message}`, 'error')
+    }
+  }
+
+  // Play received audio data
+  const playReceivedAudio = (audioData, sampleRate = 44100) => {
+    try {
+      if (!remoteAudioRef.current) return
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate })
+      const buffer = audioContext.createBuffer(1, audioData.length, sampleRate)
+      const channelData = buffer.getChannelData(0)
+      
+      // Convert int16 back to float32
+      for (let i = 0; i < audioData.length; i++) {
+        channelData[i] = audioData[i] / 32768
+      }
+      
+      const source = audioContext.createBufferSource()
+      source.buffer = buffer
+      source.connect(audioContext.destination)
+      source.start()
+      
+      addDebugLog('Played received audio data')
+    } catch (error) {
+      addDebugLog(`Failed to play audio: ${error.message}`, 'error')
+    }
+  }
+
   const acceptCall = async () => {
     if (!incomingCallData) return
 
     try {
-      addDebugLog('Accepting incoming call')
+      addDebugLog('Accepting incoming server-mediated call')
       
       // Stop ringer
       if (ringtoneRef.current) {
@@ -754,75 +754,7 @@ function App() {
         track.enabled = false
       })
 
-      // Create WebRTC peer connection
-      const pc = new RTCPeerConnection(rtcConfig)
-      peerConnectionRef.current = pc
-      setPeerConnection(pc)
-
-      // Add local stream to peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream)
-        addDebugLog(`Added ${track.kind} track to peer connection`)
-      })
-
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        addDebugLog('Received remote stream')
-        const [remoteStream] = event.streams
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream
-          remoteAudioRef.current.volume = volumeLevel
-          addDebugLog('Set remote audio stream')
-        }
-      }
-
-      // Handle ICE candidates
-      pc.onicecandidate = async (event) => {
-        if (event.candidate) {
-          addDebugLog('Sending ICE candidate from callee')
-          try {
-            await makeXMLHttpRequest('/api/calls/ice-candidate', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-User-ID': currentUser.id
-              },
-              body: JSON.stringify({
-                callId: incomingCallData.callId,
-                candidate: event.candidate
-              })
-            })
-          } catch (error) {
-            addDebugLog(`Failed to send ICE candidate: ${error.message}`, 'error')
-          }
-        }
-      }
-
-      // Monitor connection state
-      pc.onconnectionstatechange = () => {
-        addDebugLog(`Connection state changed: ${pc.connectionState}`)
-        if (pc.connectionState === 'connected') {
-          setCallStatus(`Connected to ${incomingCallData.callerUsername}`)
-        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          setCallStatus('Call disconnected')
-          endCall()
-        }
-      }
-
-      // Set remote description from offer
-      await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer))
-      addDebugLog('Set remote description from offer')
-      
-      // Create answer
-      const answer = await pc.createAnswer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: false
-      })
-      
-      await pc.setLocalDescription(answer)
-      addDebugLog('Created and set local description (answer)')
-
-      // Send answer back to caller
+      // Send answer for server-mediated call (no WebRTC answer needed)
       const response = await makeXMLHttpRequest('/api/calls/answer', {
         method: 'POST',
         headers: {
@@ -831,7 +763,7 @@ function App() {
         },
         body: JSON.stringify({
           callId: incomingCallData.callId,
-          answer: answer
+          answer: { type: 'server-mediated', mode: 'audio-relay' }
         })
       })
 
@@ -843,14 +775,17 @@ function App() {
           targetUsername: incomingCallData.callerUsername,
           targetId: incomingCallData.caller,
           isInitiator: false,
-          mode: 'webrtc'
+          mode: 'server-mediated'
         })
 
         setShowIncomingCall(false)
         setIncomingCaller('')
         setIncomingCallData(null)
         setCallStatus(`Connected to ${incomingCallData.callerUsername}`)
-        addDebugLog('Call accepted and connected')
+        addDebugLog('Server-mediated call accepted and connected')
+
+        // Set up audio processing for server relay
+        setupAudioProcessing(incomingCallData.callId)
       } else {
         throw new Error('Failed to send answer')
       }
@@ -905,7 +840,18 @@ function App() {
       localStreamRef.current = null
     }
 
-    // Close peer connection
+    // Clean up audio processing
+    if (currentCall?.audioContext) {
+      try {
+        currentCall.processor?.disconnect()
+        await currentCall.audioContext.close()
+        addDebugLog('Cleaned up audio processing')
+      } catch (error) {
+        addDebugLog(`Error cleaning up audio: ${error.message}`, 'error')
+      }
+    }
+
+    // Close peer connection if exists (fallback for any remaining WebRTC)
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close()
       peerConnectionRef.current = null
