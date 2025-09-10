@@ -518,36 +518,40 @@ function App() {
         }
       })
 
-      socketRef.current.on('call-answered', (data) => {
+      socketRef.current.on('call-answered', async (data) => {
         addDebugLog('Call answered by recipient')
-        setCallStatus('Call connected')
+        setCallStatus(`${data.answererUsername} answered`)
+        
+        // Set remote description (answer) for the caller
+        if (peerConnectionRef.current && data.answer) {
+          try {
+            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer))
+            addDebugLog('Set remote description from answer')
+            setCallStatus(`Connected to ${data.answererUsername}`)
+          } catch (error) {
+            addDebugLog(`Failed to set remote description: ${error.message}`, 'error')
+            endCall()
+          }
+        }
       })
 
       socketRef.current.on('call-ended', (data) => {
-        addDebugLog('Call ended')
-        setCallStatus('Call ended')
+        addDebugLog(`Call ended by ${data.endedByUsername}`)
+        setCallStatus(`Call ended by ${data.endedByUsername}`)
         endCall()
       })
 
-      socketRef.current.on('call-retry', (data) => {
-        addDebugLog('Call retry received')
-        // Handle call retry logic here
-      })
-
-      // Audio streaming events
-      socketRef.current.on('audio-data', (data) => {
-        addDebugLog('Audio data received')
-        // Handle incoming audio data
-      })
-
-      socketRef.current.on('audio-stream-started', (data) => {
-        addDebugLog('Audio stream started')
-        setCallStatus('Audio streaming active')
-      })
-
-      socketRef.current.on('audio-stream-stopped', (data) => {
-        addDebugLog('Audio stream stopped')
-        setCallStatus('Audio streaming stopped')
+      // ICE candidate handling for WebRTC
+      socketRef.current.on('ice-candidate', async (data) => {
+        addDebugLog('Received ICE candidate')
+        if (peerConnectionRef.current && data.candidate) {
+          try {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate))
+            addDebugLog('Added ICE candidate successfully')
+          } catch (error) {
+            addDebugLog(`Failed to add ICE candidate: ${error.message}`, 'error')
+          }
+        }
       })
 
       // User status events
@@ -575,19 +579,23 @@ function App() {
         )
       })
 
-      // ICE candidate handling for WebRTC
-      socketRef.current.on('ice-candidate', (data) => {
-        addDebugLog('Received ICE candidate')
-        if (peerConnection && data.candidate) {
-          peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
-            .catch(err => addDebugLog(`Failed to add ICE candidate: ${err.message}`, 'error'))
-        }
-      })
-
     } else {
       addDebugLog('Socket.io not available, WebSocket features will not work', 'error')
       setConnectionStatus('Offline - No WebSocket Support')
     }
+  }
+
+  // WebRTC configuration
+  const rtcConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'turn:turn.quickblox.com:3478', username: 'quickblox', credential: 'quickblox' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+    ],
+    iceCandidatePoolSize: 10
   }
 
   const callFriend = async (friend) => {
@@ -595,26 +603,92 @@ function App() {
 
     try {
       setCallStatus(`Calling ${friend.username}...`)
+      addDebugLog(`Initiating call to ${friend.username}`)
 
-      // Get user media
+      // Get user media first
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: false,
-          sampleRate: 16000,
+          sampleRate: 44100,
           channelCount: 1
         }
       })
 
       localStreamRef.current = stream
+      addDebugLog('Got user media successfully')
 
       // Disable tracks initially (PTT mode)
       stream.getAudioTracks().forEach(track => {
         track.enabled = false
       })
 
-      // Send call initiation
+      // Create RTCPeerConnection
+      const pc = new RTCPeerConnection(rtcConfig)
+      peerConnectionRef.current = pc
+      setPeerConnection(pc)
+
+      // Add local stream to peer connection
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream)
+        addDebugLog(`Added ${track.kind} track to peer connection`)
+      })
+
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        addDebugLog('Received remote stream')
+        const [remoteStream] = event.streams
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream
+          remoteAudioRef.current.volume = volumeLevel
+          addDebugLog('Set remote audio stream')
+        }
+      }
+
+      // Handle ICE candidates
+      pc.onicecandidate = async (event) => {
+        if (event.candidate) {
+          addDebugLog('Sending ICE candidate')
+          try {
+            await makeXMLHttpRequest('/api/calls/ice-candidate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': currentUser.id
+              },
+              body: JSON.stringify({
+                callId: currentCall?.id,
+                candidate: event.candidate
+              })
+            })
+          } catch (error) {
+            addDebugLog(`Failed to send ICE candidate: ${error.message}`, 'error')
+          }
+        }
+      }
+
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        addDebugLog(`Connection state changed: ${pc.connectionState}`)
+        if (pc.connectionState === 'connected') {
+          setCallStatus(`Connected to ${friend.username}`)
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setCallStatus('Call disconnected')
+          endCall()
+        }
+      }
+
+      // Create offer
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false
+      })
+      
+      await pc.setLocalDescription(offer)
+      addDebugLog('Created and set local description (offer)')
+
+      // Send call initiation with offer
       const response = await makeXMLHttpRequest('/api/calls/initiate', {
         method: 'POST',
         headers: {
@@ -623,7 +697,7 @@ function App() {
         },
         body: JSON.stringify({
           targetUsername: friend.username,
-          offer: { type: 'server-mediated' }
+          offer: offer
         })
       })
 
@@ -635,16 +709,16 @@ function App() {
           targetUsername: friend.username,
           targetId: callData.targetId,
           isInitiator: true,
-          mode: 'server-mediated'
+          mode: 'webrtc'
         })
-        setCallStatus(`Calling ${friend.username} (server-mediated)...`)
-        console.log('Call initiated:', callData.callId)
+        setCallStatus(`Calling ${friend.username}...`)
+        addDebugLog(`Call initiated with ID: ${callData.callId}`)
       } else {
         throw new Error('Failed to initiate call')
       }
     } catch (error) {
-      console.error('Call error:', error)
-      setCallStatus('Call failed')
+      addDebugLog(`Call error: ${error.message}`, 'error')
+      setCallStatus(`Call failed: ${error.message}`)
       endCall()
     }
   }
@@ -664,83 +738,131 @@ function App() {
       // Get user media for the call
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: false,
-          sampleRate: 16000,
+          sampleRate: 44100,
           channelCount: 1
         }
       })
 
       localStreamRef.current = stream
+      addDebugLog('Got user media for incoming call')
 
-      // Create WebRTC peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+      // Disable tracks initially (PTT mode)
+      stream.getAudioTracks().forEach(track => {
+        track.enabled = false
       })
 
+      // Create WebRTC peer connection
+      const pc = new RTCPeerConnection(rtcConfig)
+      peerConnectionRef.current = pc
+      setPeerConnection(pc)
+
       // Add local stream to peer connection
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream)
+        addDebugLog(`Added ${track.kind} track to peer connection`)
+      })
 
       // Handle remote stream
       pc.ontrack = (event) => {
         addDebugLog('Received remote stream')
+        const [remoteStream] = event.streams
         if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = event.streams[0]
+          remoteAudioRef.current.srcObject = remoteStream
+          remoteAudioRef.current.volume = volumeLevel
+          addDebugLog('Set remote audio stream')
         }
       }
 
       // Handle ICE candidates
-      pc.onicecandidate = (event) => {
+      pc.onicecandidate = async (event) => {
         if (event.candidate) {
-          // Send ICE candidate to the other peer via socket
-          socketRef.current.emit('ice-candidate', {
-            callId: incomingCallData.callId,
-            candidate: event.candidate
-          })
+          addDebugLog('Sending ICE candidate from callee')
+          try {
+            await makeXMLHttpRequest('/api/calls/ice-candidate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': currentUser.id
+              },
+              body: JSON.stringify({
+                callId: incomingCallData.callId,
+                candidate: event.candidate
+              })
+            })
+          } catch (error) {
+            addDebugLog(`Failed to send ICE candidate: ${error.message}`, 'error')
+          }
+        }
+      }
+
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        addDebugLog(`Connection state changed: ${pc.connectionState}`)
+        if (pc.connectionState === 'connected') {
+          setCallStatus(`Connected to ${incomingCallData.callerUsername}`)
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setCallStatus('Call disconnected')
+          endCall()
         }
       }
 
       // Set remote description from offer
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer))
+      addDebugLog('Set remote description from offer')
       
       // Create answer
-      const answer = await pc.createAnswer()
+      const answer = await pc.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false
+      })
+      
       await pc.setLocalDescription(answer)
+      addDebugLog('Created and set local description (answer)')
 
       // Send answer back to caller
-      socketRef.current.emit('answer-call', {
-        callId: incomingCallData.callId,
-        answer: answer
+      const response = await makeXMLHttpRequest('/api/calls/answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.id
+        },
+        body: JSON.stringify({
+          callId: incomingCallData.callId,
+          answer: answer
+        })
       })
 
-      // Update state
-      setPeerConnection(pc)
-      setCurrentCall({
-        id: incomingCallData.callId,
-        status: 'connected',
-        targetUsername: incomingCallData.callerUsername,
-        targetId: incomingCallData.caller,
-        isInitiator: false,
-        mode: 'webrtc'
-      })
+      if (response.ok) {
+        // Update state
+        setCurrentCall({
+          id: incomingCallData.callId,
+          status: 'connected',
+          targetUsername: incomingCallData.callerUsername,
+          targetId: incomingCallData.caller,
+          isInitiator: false,
+          mode: 'webrtc'
+        })
 
-      setShowIncomingCall(false)
-      setIncomingCaller('')
-      setIncomingCallData(null)
-      setCallStatus('Call connected')
+        setShowIncomingCall(false)
+        setIncomingCaller('')
+        setIncomingCallData(null)
+        setCallStatus(`Connected to ${incomingCallData.callerUsername}`)
+        addDebugLog('Call accepted and connected')
+      } else {
+        throw new Error('Failed to send answer')
+      }
 
     } catch (error) {
       addDebugLog(`Failed to accept call: ${error.message}`, 'error')
-      setCallStatus('Failed to accept call')
+      setCallStatus(`Failed to accept call: ${error.message}`)
       rejectCall()
     }
   }
 
-  const rejectCall = () => {
+  const rejectCall = async () => {
     addDebugLog('Rejecting incoming call')
     
     // Stop ringer
@@ -750,8 +872,19 @@ function App() {
     }
 
     // Send call rejection
-    if (incomingCallData && socketRef.current) {
-      socketRef.current.emit('end-call', { callId: incomingCallData.callId })
+    if (incomingCallData) {
+      try {
+        await makeXMLHttpRequest('/api/calls/end', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': currentUser.id
+          },
+          body: JSON.stringify({ callId: incomingCallData.callId })
+        })
+      } catch (error) {
+        addDebugLog(`Failed to reject call: ${error.message}`, 'error')
+      }
     }
 
     setShowIncomingCall(false)
@@ -760,55 +893,81 @@ function App() {
     setCallStatus('Call rejected')
   }
 
-  const endCall = () => {
+  const endCall = async () => {
     addDebugLog('Ending call')
     
     // Stop local media
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop())
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop()
+        addDebugLog(`Stopped ${track.kind} track`)
+      })
       localStreamRef.current = null
     }
 
     // Close peer connection
-    if (peerConnection) {
-      peerConnection.close()
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
       setPeerConnection(null)
+      addDebugLog('Closed peer connection')
     }
 
     // Send end call event
-    if (currentCall && socketRef.current) {
-      socketRef.current.emit('end-call', { callId: currentCall.id })
+    if (currentCall) {
+      try {
+        await makeXMLHttpRequest('/api/calls/end', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': currentUser.id
+          },
+          body: JSON.stringify({ callId: currentCall.id })
+        })
+        addDebugLog('Sent end call request to server')
+      } catch (error) {
+        addDebugLog(`Failed to end call on server: ${error.message}`, 'error')
+      }
     }
 
     setCurrentCall(null)
     setCallStatus('')
     setIsPTTPressed(false)
+    addDebugLog('Call ended locally')
   }
 
   const handlePTTStart = () => {
-    if (!currentCall) return
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLog('PTT start ignored: no active call or media stream', 'warn')
+      return
+    }
 
     setIsPTTPressed(true)
-    setCallStatus('talking')
+    setCallStatus('Talking...')
+    addDebugLog('PTT activated - enabling microphone')
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = true
-      })
-    }
+    // Enable all audio tracks
+    localStreamRef.current.getAudioTracks().forEach(track => {
+      track.enabled = true
+      addDebugLog(`Enabled audio track: ${track.label}`)
+    })
   }
 
   const handlePTTEnd = () => {
-    if (!currentCall) return
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLog('PTT end ignored: no active call or media stream', 'warn')
+      return
+    }
 
     setIsPTTPressed(false)
-    setCallStatus('listening')
+    setCallStatus(`Connected to ${currentCall.targetUsername}`)
+    addDebugLog('PTT released - disabling microphone')
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = false
-      })
-    }
+    // Disable all audio tracks
+    localStreamRef.current.getAudioTracks().forEach(track => {
+      track.enabled = false
+      addDebugLog(`Disabled audio track: ${track.label}`)
+    })
   }
 
   const addFriend = async () => {

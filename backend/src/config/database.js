@@ -292,6 +292,22 @@ class Database {
         });
     }
 
+    updateCall(callId, status) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE active_calls SET status = ? WHERE id = ?',
+                [status, callId],
+                function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(this.changes > 0);
+                    }
+                }
+            );
+        });
+    }
+
     endCall(callId) {
         return new Promise((resolve, reject) => {
             this.db.run('DELETE FROM active_calls WHERE id = ?', [callId], function(err) {
