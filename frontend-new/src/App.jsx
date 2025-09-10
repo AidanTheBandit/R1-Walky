@@ -41,7 +41,24 @@ function App() {
     setDebugLogs(prev => [...prev.slice(-9), logEntry]) // Keep last 10 logs
   }
 
-  // Initialize app
+  // Test backend connectivity
+  const testBackendConnectivity = async () => {
+    addDebugLog('Testing backend connectivity...')
+    try {
+      const response = await makeXMLHttpRequest('/api/test')
+      addDebugLog(`Backend connectivity test: ${response.ok} (${response.status})`)
+      if (response.ok) {
+        const data = await response.json()
+        addDebugLog(`Backend response: ${data.message}`)
+      } else {
+        addDebugLog('Backend connectivity test failed', 'error')
+      }
+    } catch (error) {
+      addDebugLog(`Backend connectivity test error: ${error.message}`, 'error')
+    }
+  }
+
+  // Initialize app on mount
   useEffect(() => {
     addDebugLog('App component mounted')
     console.log('XMLHttpRequest available:', typeof XMLHttpRequest)
@@ -63,8 +80,24 @@ function App() {
     }
     testXhr.send()
     
+    // Test backend connectivity
+    testBackendConnectivity()
+    
     initializeApp()
   }, [])
+
+  // Ensure if no current user, show login screen
+  useEffect(() => {
+    if (!currentUser && showMainScreen) {
+      addDebugLog('No current user but main screen shown, resetting to login', 'warn')
+      setShowMainScreen(false)
+    }
+  }, [currentUser, showMainScreen])
+
+  // Monitor currentUser state changes
+  useEffect(() => {
+    addDebugLog(`currentUser state changed: ${currentUser ? JSON.stringify(currentUser) : 'null'}`)
+  }, [currentUser])
 
   const initializeApp = () => {
     addDebugLog('Starting app initialization')
@@ -120,30 +153,45 @@ function App() {
       }
 
       xhr.onload = function() {
-        addDebugLog(`XMLHttpRequest response: ${xhr.status}`)
+        addDebugLog(`XMLHttpRequest onload triggered with status: ${xhr.status}`)
+        addDebugLog(`XMLHttpRequest response text: ${xhr.responseText}`)
+        addDebugLog(`XMLHttpRequest readyState: ${xhr.readyState}`)
+        addDebugLog(`XMLHttpRequest statusText: ${xhr.statusText}`)
         const response = {
           ok: xhr.status >= 200 && xhr.status < 300,
           status: xhr.status,
           json: function() {
             try {
-              return Promise.resolve(JSON.parse(xhr.responseText || '{}'));
+              const parsed = JSON.parse(xhr.responseText || '{}')
+              addDebugLog(`XMLHttpRequest parsed response: ${JSON.stringify(parsed)}`)
+              return Promise.resolve(parsed);
             } catch (e) {
+              addDebugLog(`XMLHttpRequest JSON parse error: ${e.message}`, 'error')
+              addDebugLog(`XMLHttpRequest raw response text: "${xhr.responseText}"`, 'error')
               return Promise.reject(new Error('Invalid JSON response'));
             }
           }
         };
+        addDebugLog(`XMLHttpRequest response object created: ok=${response.ok}, status=${response.status}`)
         resolve(response);
       };
 
       xhr.onerror = function() {
-        addDebugLog('XMLHttpRequest network error', 'error')
+        addDebugLog('XMLHttpRequest onerror triggered', 'error')
+        addDebugLog(`XMLHttpRequest error details: readyState=${xhr.readyState}, status=${xhr.status}, statusText=${xhr.statusText}`, 'error')
         reject(new Error('Network error'));
       };
 
       xhr.timeout = 10000;
       xhr.ontimeout = function() {
-        addDebugLog('XMLHttpRequest timeout', 'error')
+        addDebugLog('XMLHttpRequest ontimeout triggered', 'error')
+        addDebugLog(`XMLHttpRequest timeout details: readyState=${xhr.readyState}, status=${xhr.status}`, 'error')
         reject(new Error('Request timeout'));
+      };
+
+      xhr.onabort = function() {
+        addDebugLog('XMLHttpRequest onabort triggered', 'error')
+        reject(new Error('Request aborted'));
       };
 
       if (options.body) {
@@ -155,28 +203,41 @@ function App() {
   };
 
   const validateUser = async (user) => {
-    addDebugLog(`Validating user: ${user.username}`)
+    addDebugLog(`Validating user: ${user.username} with ID: ${user.id}`)
     try {
       addDebugLog('Making API call to /api/users/me')
       const response = await makeXMLHttpRequest('/api/users/me', {
         headers: { 'X-User-ID': user.id }
       });
       addDebugLog(`Validation response: ${response.ok} (${response.status})`)
-
+      
       if (response.ok) {
-        addDebugLog('User validated successfully')
+        const userData = await response.json()
+        addDebugLog(`User validated successfully: ${userData.username} (ID: ${userData.id})`)
+        addDebugLog(`Setting currentUser state after validation: ${JSON.stringify(userData)}`)
+        setCurrentUser(userData)
+        addDebugLog(`Updating localStorage after validation: ${JSON.stringify(userData)}`)
+        localStorage.setItem('walky_user', JSON.stringify(userData))
+        addDebugLog('Setting showMainScreen to true after validation')
         setShowMainScreen(true);
-        loadFriends();
-        loadFriendRequests();
+        addDebugLog('Calling loadFriends() after validation with userData')
+        loadFriends(userData);
+        addDebugLog('Calling loadFriendRequests() after validation with userData')
+        loadFriendRequests(userData);
         // Small delay to ensure state is updated
-        setTimeout(() => connectSocket(), 100);
+        addDebugLog('Scheduling connectSocket() in 100ms after validation with userData')
+        setTimeout(() => {
+          addDebugLog('Executing connectSocket() after validation with userData')
+          connectSocket(userData)
+        }, 100);
       } else {
-        addDebugLog(`User validation failed (${response.status}), creating new user`, 'warn')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        addDebugLog(`User validation failed (${response.status}): ${errorData.error}`, 'error')
         // User doesn't exist, create them
         await createUser(user.username)
       }
     } catch (error) {
-      addDebugLog(`User validation error: ${error.message}, creating new user`, 'warn')
+      addDebugLog(`User validation error: ${error.message}`, 'error')
       // Network error, try to create user
       await createUser(user.username)
     }
@@ -206,25 +267,40 @@ function App() {
       if (response.ok) {
         const user = await response.json()
         addDebugLog(`User created successfully: ${user.username} (ID: ${user.id})`)
+        addDebugLog(`Setting currentUser state: ${JSON.stringify(user)}`)
         setCurrentUser(user)
+        addDebugLog(`Saving to localStorage: ${JSON.stringify(user)}`)
         localStorage.setItem('walky_user', JSON.stringify(user))
+        addDebugLog('Setting showMainScreen to true')
         setShowMainScreen(true)
-        loadFriends()
-        loadFriendRequests()
+        addDebugLog('Calling loadFriends() with user data')
+        loadFriends(user)
+        addDebugLog('Calling loadFriendRequests() with user data')
+        loadFriendRequests(user)
         // Small delay to ensure state is updated
-        setTimeout(() => connectSocket(), 100);
+        addDebugLog('Scheduling connectSocket() in 100ms with user data')
+        setTimeout(() => {
+          addDebugLog('Executing connectSocket() with user data')
+          connectSocket(user)
+        }, 100);
       } else {
         const error = await response.json()
         addDebugLog(`Failed to create user: ${error.error}`, 'error')
         setLoginStatus(`Failed to create user: ${error.error}`)
         localStorage.removeItem('walky_user')
         setCurrentUser(null)
+        setFriends([])
+        setFriendRequests([])
+        setShowMainScreen(false)  // Reset to login screen
       }
     } catch (error) {
       addDebugLog(`Create user error: ${error.message}`, 'error')
       setLoginStatus('Network error - cannot create user')
       localStorage.removeItem('walky_user')
       setCurrentUser(null)
+      setFriends([])
+      setFriendRequests([])
+      setShowMainScreen(false)
     }
   };
 
@@ -257,13 +333,22 @@ function App() {
       if (response.ok) {
         const user = await response.json()
         addDebugLog(`Login successful for user: ${user.username} (ID: ${user.id})`)
+        addDebugLog(`Setting currentUser state after login: ${JSON.stringify(user)}`)
         setCurrentUser(user)
+        addDebugLog(`Saving to localStorage after login: ${JSON.stringify(user)}`)
         localStorage.setItem('walky_user', JSON.stringify(user))
+        addDebugLog('Setting showMainScreen to true after login')
         setShowMainScreen(true)
-        loadFriends()
-        loadFriendRequests()
+        addDebugLog('Calling loadFriends() after login with user data')
+        loadFriends(user)
+        addDebugLog('Calling loadFriendRequests() after login with user data')
+        loadFriendRequests(user)
         // Small delay to ensure state is updated
-        setTimeout(() => connectSocket(), 100);
+        addDebugLog('Scheduling connectSocket() in 100ms after login with user data')
+        setTimeout(() => {
+          addDebugLog('Executing connectSocket() after login with user data')
+          connectSocket(user)
+        }, 100);
       } else {
         const error = await response.json()
         addDebugLog(`Login failed: ${error.error}`, 'error')
@@ -275,57 +360,73 @@ function App() {
     }
   }
 
-  const loadFriends = async () => {
-    if (!currentUser) {
-      addDebugLog('Cannot load friends: no current user', 'error')
+  const loadFriends = async (userData = null) => {
+    const user = userData || currentUser
+    addDebugLog(`loadFriends called, user: ${user ? JSON.stringify(user) : 'null'}`)
+    if (!user) {
+      addDebugLog('Cannot load friends: no user provided', 'error')
       return
     }
 
-    addDebugLog(`Loading friends for user: ${currentUser.username}`)
+    if (!user.id) {
+      addDebugLog('Cannot load friends: no user ID', 'error')
+      return
+    }
+
+    addDebugLog(`Loading friends for user: ${user.username} (ID: ${user.id})`)
     try {
       addDebugLog('Making XMLHttpRequest to /api/friends')
       const response = await makeXMLHttpRequest('/api/friends', {
         method: 'GET',
-        headers: { 'X-User-ID': currentUser.id }
+        headers: { 'X-User-ID': user.id }
       })
       addDebugLog(`Friends XMLHttpRequest response: ${response.status}`)
 
       if (response.ok) {
         const friendsData = await response.json()
-        addDebugLog(`Loaded ${friendsData.length} friends`)
+        addDebugLog(`Loaded ${friendsData.length} friends: ${friendsData.map(f => f.username).join(', ')}`)
         setFriends(friendsData)
       } else {
-        addDebugLog(`Failed to load friends: ${response.status}`, 'error')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        addDebugLog(`Failed to load friends (${response.status}): ${errorData.error}`, 'error')
       }
     } catch (error) {
       addDebugLog(`Load friends error: ${error.message}`, 'error')
     }
   }
 
-  const loadFriendRequests = async () => {
-    if (!currentUser) {
-      console.log('No current user, skipping loadFriendRequests')
+  const loadFriendRequests = async (userData = null) => {
+    const user = userData || currentUser
+    addDebugLog(`loadFriendRequests called, user: ${user ? JSON.stringify(user) : 'null'}`)
+    if (!user) {
+      addDebugLog('Cannot load friend requests: no user provided', 'error')
       return
     }
 
-    console.log('Loading friend requests for user:', currentUser.username)
+    if (!user.id) {
+      addDebugLog('Cannot load friend requests: no user ID', 'error')
+      return
+    }
+
+    addDebugLog(`Loading friend requests for user: ${user.username} (ID: ${user.id})`)
     try {
-      console.log('Making XMLHttpRequest to /api/friends/requests')
+      addDebugLog('Making XMLHttpRequest to /api/friends/requests')
       const response = await makeXMLHttpRequest('/api/friends/requests', {
         method: 'GET',
-        headers: { 'X-User-ID': currentUser.id }
+        headers: { 'X-User-ID': user.id }
       })
-      console.log('Friend requests XMLHttpRequest response status:', response.status)
+      addDebugLog(`Friend requests XMLHttpRequest response: ${response.status}`)
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Friend requests loaded:', data)
+        addDebugLog(`Loaded ${data.requests?.length || 0} friend requests`)
         setFriendRequests(data.requests || [])
       } else {
-        console.log('Failed to load friend requests, status:', response.status)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        addDebugLog(`Failed to load friend requests (${response.status}): ${errorData.error}`, 'error')
       }
     } catch (error) {
-      console.error('Load friend requests error:', error)
+      addDebugLog(`Load friend requests error: ${error.message}`, 'error')
     }
   }
 
@@ -376,13 +477,15 @@ function App() {
     }
   }
 
-  const connectSocket = () => {
-    if (!currentUser || !currentUser.id) {
-      addDebugLog('Cannot connect socket: no current user or user ID', 'error')
+  const connectSocket = (userData = null) => {
+    const user = userData || currentUser
+    addDebugLog(`connectSocket called, user: ${user ? JSON.stringify(user) : 'null'}`)
+    if (!user || !user.id) {
+      addDebugLog('Cannot connect socket: no user or user ID', 'error')
       return
     }
 
-    addDebugLog(`Connecting to WebSocket for user: ${currentUser.username} (ID: ${currentUser.id})`)
+    addDebugLog(`Connecting to WebSocket for user: ${user.username} (ID: ${user.id})`)
     
     // Try socket.io first, fallback to native WebSocket
     if (typeof io !== 'undefined') {
@@ -395,7 +498,7 @@ function App() {
       socketRef.current.on('connect', () => {
         addDebugLog('Socket.io connected successfully')
         setConnectionStatus('Online')
-        socketRef.current.emit('register', currentUser.id)
+        socketRef.current.emit('register', user.id)
       })
 
       socketRef.current.on('connect_error', (error) => {
@@ -437,7 +540,7 @@ function App() {
         // Send registration message
         socketRef.current.send(JSON.stringify({
           type: 'register',
-          userId: currentUser.id
+          userId: user.id
         }))
       }
 

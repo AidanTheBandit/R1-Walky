@@ -73,9 +73,12 @@ function initDatabase() {
 function userAuthMiddleware(req, res, next) {
     // Try to get user from header
     const userId = req.headers['x-user-id'];
-
+    
     if (userId) {
+        console.log('🔐 Auth middleware: X-User-ID found:', userId);
         req.currentUserId = userId;
+    } else {
+        console.log('🔐 Auth middleware: No X-User-ID header');
     }
 
     next();
@@ -85,18 +88,22 @@ function userAuthMiddleware(req, res, next) {
 function getCurrentUser(req, res, callback) {
     if (req.currentUserId) {
         // If we have a user ID from headers, use it
+        console.log('🔍 Looking up user by ID:', req.currentUserId);
         db.get('SELECT * FROM users WHERE id = ?', [req.currentUserId], (err, user) => {
             if (err) {
-                console.error('Database error getting user by ID:', err);
+                console.log('❌ Database error getting user by ID:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
             if (!user) {
+                console.log('❌ User not found with ID:', req.currentUserId);
                 return res.status(401).json({ error: 'User not found - please re-authenticate' });
             }
+            console.log('✅ Found user:', user.username, '(ID:', user.id + ')');
             callback(user);
         });
     } else {
         // No user ID provided - require authentication
+        console.log('❌ No X-User-ID header provided');
         return res.status(401).json({ error: 'Authentication required' });
     }
 }
@@ -105,7 +112,23 @@ function getCurrentUser(req, res, callback) {
 function setupRoutes() {
     // Health check (no auth required)
     app.get('/health', (req, res) => {
-        res.json({ status: 'OK', timestamp: new Date().toISOString() });
+        console.log('💚 Health check called');
+        res.json({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            server: 'R1-Walky Backend',
+            version: '1.0.0'
+        });
+    });
+
+    // Test connectivity endpoint (no auth required)
+    app.get('/api/test', (req, res) => {
+        console.log('🧪 Test endpoint called');
+        res.json({
+            message: 'Backend is reachable!',
+            timestamp: new Date().toISOString(),
+            headers: req.headers
+        });
     });
 
     // Get TURN server configuration
@@ -210,9 +233,13 @@ function setupRoutes() {
 
     // User registration (no auth required)
     app.post('/api/users', (req, res) => {
+        console.log('👤 POST /api/users called');
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        
         const { username, deviceId } = req.body;
 
         if (!username || !deviceId) {
+            console.log('❌ Missing username or deviceId');
             return res.status(400).json({ error: 'Username and deviceId required' });
         }
 
@@ -221,17 +248,21 @@ function setupRoutes() {
         // Convert username to lowercase for case-insensitive storage
         const normalizedUsername = username.toLowerCase();
         
+        console.log('📝 Creating user:', username, 'with ID:', userId);
+        
         db.run(
             'INSERT INTO users (id, username, device_id) VALUES (?, ?, ?)',
             [userId, normalizedUsername, deviceId],
             function(err) {
                 if (err) {
+                    console.log('❌ Database error creating user:', err.message);
                     if (err.message.includes('UNIQUE constraint failed')) {
                         return res.status(409).json({ error: 'Username already exists' });
                     }
                     return res.status(500).json({ error: 'Database error' });
                 }
 
+                console.log('✅ User created successfully:', username, '(ID:', userId + ')');
                 res.json({
                     id: userId,
                     username: username,
@@ -246,7 +277,12 @@ function setupRoutes() {
 
     // Get current user
     app.get('/api/users/me', (req, res) => {
+        console.log('🔍 GET /api/users/me called');
+        console.log('Headers:', JSON.stringify(req.headers, null, 2));
+        console.log('X-User-ID:', req.headers['x-user-id']);
+        
         getCurrentUser(req, res, (user) => {
+            console.log('✅ User found:', user.username, '(ID:', user.id + ')');
             res.json({
                 id: user.id,
                 username: user.username,
@@ -355,8 +391,11 @@ function setupRoutes() {
 
     // Get friends list (only accepted friendships)
     app.get('/api/friends', (req, res) => {
+        console.log('👥 GET /api/friends called');
+        console.log('X-User-ID:', req.headers['x-user-id']);
+        
         getCurrentUser(req, res, (currentUser) => {
-            console.log(`Getting friends for user: ${currentUser.username} (${currentUser.device_id})`);
+            console.log(`👤 Getting friends for user: ${currentUser.username} (${currentUser.device_id})`);
 
             db.all(`
                 SELECT u.username, u.id, f.status
@@ -368,11 +407,11 @@ function setupRoutes() {
                 WHERE u.id != ? AND f.status = 'accepted'
             `, [currentUser.id, currentUser.id, currentUser.id], (err, rows) => {
                 if (err) {
-                    console.error('Database error getting friends:', err);
+                    console.log('❌ Database error getting friends:', err);
                     return res.status(500).json({ error: 'Database error' });
                 }
 
-                console.log(`Found ${rows.length} friends for ${currentUser.username}`);
+                console.log(`✅ Found ${rows.length} friends for ${currentUser.username}`);
                 // For simplicity, mark all as offline
                 const friends = rows.map(row => ({
                     id: row.id,
