@@ -430,69 +430,6 @@ function App() {
     }
   }
 
-  const acceptFriendRequest = async (friendshipId) => {
-    if (!currentUser) {
-      addDebugLog('Cannot accept friend request: no current user', 'error')
-      return
-    }
-
-    addDebugLog(`Accepting friend request: ${friendshipId}`)
-    try {
-      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/accept`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-ID': currentUser.id
-        }
-      })
-
-      addDebugLog(`Accept friend request response: ${response.status}`)
-      if (response.ok) {
-        setCallStatus('Friend request accepted!')
-        // Reload friend requests and friends list
-        loadFriendRequests()
-        setTimeout(() => loadFriends(), 500)
-      } else {
-        const error = await response.json()
-        setCallStatus(error.error || 'Failed to accept friend request')
-      }
-    } catch (error) {
-      addDebugLog(`Accept friend request error: ${error.message}`, 'error')
-      setCallStatus('Network error')
-    }
-  }
-
-  const rejectFriendRequest = async (friendshipId) => {
-    if (!currentUser) {
-      addDebugLog('Cannot reject friend request: no current user', 'error')
-      return
-    }
-
-    addDebugLog(`Rejecting friend request: ${friendshipId}`)
-    try {
-      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-ID': currentUser.id
-        }
-      })
-
-      addDebugLog(`Reject friend request response: ${response.status}`)
-      if (response.ok) {
-        setCallStatus('Friend request rejected')
-        // Reload friend requests
-        loadFriendRequests()
-      } else {
-        const error = await response.json()
-        setCallStatus(error.error || 'Failed to reject friend request')
-      }
-    } catch (error) {
-      addDebugLog(`Reject friend request error: ${error.message}`, 'error')
-      setCallStatus('Network error')
-    }
-  }
-
   const connectSocket = (userData = null) => {
     const user = userData || currentUser
     addDebugLog(`connectSocket called, user: ${user ? JSON.stringify(user) : 'null'}`)
@@ -765,6 +702,73 @@ function App() {
       }
     } catch (error) {
       addDebugLog(`Add friend error: ${error.message}`, 'error')
+      setCallStatus('Network error')
+    }
+  }
+
+  const acceptFriendRequest = async (friendshipId) => {
+    if (!currentUser) {
+      addDebugLog('Cannot accept friend request: no current user', 'error')
+      return
+    }
+
+    addDebugLog(`Accepting friend request: ${friendshipId}`)
+    setCallStatus('Accepting friend request...')
+
+    try {
+      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.id
+        }
+      })
+
+      addDebugLog(`Accept friend request response: ${response.status}`)
+      if (response.ok) {
+        setCallStatus('Friend request accepted!')
+        // Reload friend requests and friends list
+        loadFriendRequests(currentUser)
+        setTimeout(() => loadFriends(currentUser), 500)
+      } else {
+        const error = await response.json()
+        setCallStatus(error.error || 'Failed to accept friend request')
+      }
+    } catch (error) {
+      addDebugLog(`Accept friend request error: ${error.message}`, 'error')
+      setCallStatus('Network error')
+    }
+  }
+
+  const rejectFriendRequest = async (friendshipId) => {
+    if (!currentUser) {
+      addDebugLog('Cannot reject friend request: no current user', 'error')
+      return
+    }
+
+    addDebugLog(`Rejecting friend request: ${friendshipId}`)
+    setCallStatus('Rejecting friend request...')
+
+    try {
+      const response = await makeXMLHttpRequest(`/api/friends/${friendshipId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.id
+        }
+      })
+
+      addDebugLog(`Reject friend request response: ${response.status}`)
+      if (response.ok) {
+        setCallStatus('Friend request rejected')
+        // Reload friend requests
+        loadFriendRequests(currentUser)
+      } else {
+        const error = await response.json()
+        setCallStatus(error.error || 'Failed to reject friend request')
+      }
+    } catch (error) {
+      addDebugLog(`Reject friend request error: ${error.message}`, 'error')
       setCallStatus('Network error')
     }
   }
