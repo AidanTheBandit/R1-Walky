@@ -26,42 +26,29 @@ function MainScreen({
   showGroupCall,
   groupCallData,
   onGroupCallStarted,
-  onGroupCallClosed
+  onGroupCallClosed,
+  showIncomingCall,
+  incomingCaller,
+  acceptCall,
+  rejectCall,
+  showCalling,
+  callingTarget,
+  cancelCall
 }) {
   const [currentScreen, setCurrentScreen] = useState('main')
   const [selectedFriendIndex, setSelectedFriendIndex] = useState(0)
 
-  // Hardware button event listeners
+  // Handle automatic screen switching for call states
   useEffect(() => {
-    const handleScrollUp = () => {
-      if (currentScreen === 'friends') {
-        setSelectedFriendIndex(prev => Math.max(0, prev - 1))
-      }
+    if (showIncomingCall || showCalling) {
+      // Don't allow navigation away from call screens
+      return
     }
-
-    const handleScrollDown = () => {
-      if (currentScreen === 'friends') {
-        setSelectedFriendIndex(prev => Math.min(friends.length - 1, prev + 1))
-      }
+    // Reset to main screen when call states are cleared
+    if (currentScreen !== 'main' && currentScreen !== 'friends' && currentScreen !== 'channels' && currentScreen !== 'settings') {
+      setCurrentScreen('main')
     }
-
-    const handleSideClick = () => {
-      if (currentScreen === 'friends' && friends[selectedFriendIndex]) {
-        callFriend(friends[selectedFriendIndex])
-      }
-    }
-
-    // Add event listeners
-    window.addEventListener('scrollUp', handleScrollUp)
-    window.addEventListener('scrollDown', handleScrollDown)
-    window.addEventListener('sideClick', handleSideClick)
-
-    return () => {
-      window.removeEventListener('scrollUp', handleScrollUp)
-      window.removeEventListener('scrollDown', handleScrollDown)
-      window.removeEventListener('sideClick', handleSideClick)
-    }
-  }, [currentScreen, friends, selectedFriendIndex, callFriend])
+  }, [showIncomingCall, showCalling, currentScreen])
 
   const renderMainScreen = () => (
     <div className="lcd-content">
@@ -125,22 +112,53 @@ function MainScreen({
     </div>
   )
 
-  const renderSettingsScreen = () => (
+  const renderIncomingCallScreen = () => (
     <div className="lcd-content">
-      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
       <div className="lcd-text lcd-title">
-        SETTINGS
+        INCOMING CALL
       </div>
-      <div className="settings-list">
-        <div className="setting-item">
-          <span>Debug</span>
-          <span>{friends.some(f => f.username.toLowerCase() === 'debugger') ? 'ON' : 'OFF'}</span>
-        </div>
+      <div className="caller-info">
+        <div className="caller-name">{incomingCaller}</div>
+        <div className="call-status">is calling...</div>
+      </div>
+      <div className="call-buttons">
+        <button className="call-accept-btn" onClick={acceptCall}>
+          📞 ACCEPT
+        </button>
+        <button className="call-reject-btn" onClick={rejectCall}>
+          📞 REJECT
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderCallingScreen = () => (
+    <div className="lcd-content">
+      <div className="lcd-text lcd-title">
+        CALLING...
+      </div>
+      <div className="calling-info">
+        <div className="target-name">{callingTarget}</div>
+        <div className="call-status">{callStatus}</div>
+      </div>
+      <div className="call-buttons">
+        <button className="call-cancel-btn" onClick={cancelCall}>
+          📞 CANCEL
+        </button>
       </div>
     </div>
   )
 
   const renderCurrentScreen = () => {
+    // Handle call states first
+    if (showIncomingCall) {
+      return renderIncomingCallScreen()
+    }
+    if (showCalling) {
+      return renderCallingScreen()
+    }
+
+    // Handle normal screens
     switch (currentScreen) {
       case 'friends':
         return renderFriendsScreen()

@@ -3,7 +3,6 @@ import { io } from 'socket.io-client'
 import './App.css'
 import LoginScreen from './components/LoginScreen'
 import MainScreen from './components/MainScreen'
-import IncomingCallOverlay, { CallingOverlay } from './components/IncomingCallOverlay'
 import DebugOverlay from './components/DebugOverlay'
 import { makeXMLHttpRequest, addDebugLog } from './utils/api'
 import { AudioHandlerClass } from './utils/AudioHandler'
@@ -542,9 +541,20 @@ function App() {
           const started = await AudioHandler.current.startRecording(localStreamRef.current)
           if (!started) {
             addDebugLogLocal('Failed to start audio recording', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully')
           }
         } else {
-          addDebugLogLocal('AudioHandler not initialized', 'error')
+          addDebugLogLocal('AudioHandler not initialized - initializing now', 'error')
+          // Initialize AudioHandler if not already done
+          AudioHandler.current = new AudioHandlerClass()
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording after initialization', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully after initialization')
+          }
         }
       } else {
         throw new Error('Failed to initiate call')
@@ -626,9 +636,20 @@ function App() {
           const started = await AudioHandler.current.startRecording(localStreamRef.current)
           if (!started) {
             addDebugLogLocal('Failed to start audio recording', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully')
           }
         } else {
-          addDebugLogLocal('AudioHandler not initialized', 'error')
+          addDebugLogLocal('AudioHandler not initialized - initializing now', 'error')
+          // Initialize AudioHandler if not already done
+          AudioHandler.current = new AudioHandlerClass()
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording after initialization', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully after initialization')
+          }
         }
       } else {
         throw new Error('Failed to send answer')
@@ -922,13 +943,6 @@ function App() {
       <div className="app">
         <LoginScreen login={login} loginStatus={loginStatus} />
 
-        <IncomingCallOverlay
-          showIncomingCall={showIncomingCall}
-          incomingCaller={incomingCaller}
-          acceptCall={acceptCall}
-          rejectCall={rejectCall}
-        />
-
         {/* Debug Overlay */}
         {showDebug && (
           <div className="debug-overlay">
@@ -975,26 +989,19 @@ function App() {
         groupCallData={groupCallData}
         onGroupCallStarted={handleGroupCallStarted}
         onGroupCallClosed={handleGroupCallClosed}
+        showIncomingCall={showIncomingCall}
+        incomingCaller={incomingCaller}
+        acceptCall={acceptCall}
+        rejectCall={rejectCall}
+        showCalling={showCalling}
+        callingTarget={callingTarget}
+        cancelCall={cancelCall}
       />
 
       <audio ref={ringtoneRef} loop>
         <source src="/ringer.mp3" type="audio/mpeg" />
       </audio>
       <audio ref={remoteAudioRef} autoplay></audio>
-
-      <IncomingCallOverlay
-        showIncomingCall={showIncomingCall}
-        incomingCaller={incomingCaller}
-        acceptCall={acceptCall}
-        rejectCall={rejectCall}
-      />
-
-      <CallingOverlay
-        showCalling={showCalling}
-        targetName={callingTarget}
-        callStatus={callStatus}
-        cancelCall={cancelCall}
-      />
 
       {/* Debug Overlay */}
       {showDebug && (
