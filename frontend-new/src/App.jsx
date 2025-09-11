@@ -51,7 +51,15 @@ function App() {
   window.ringtoneRef = ringtoneRef
   window.volumeLevel = volumeLevel
 
-  // Define functions that are used by the useSocket hook before the hook call
+  // Initialize AudioHandler
+  useEffect(() => {
+    if (!AudioHandler.current) {
+      AudioHandler.current = new AudioHandlerClass()
+      addDebugLogLocal('AudioHandler initialized successfully')
+    } else {
+      addDebugLogLocal('AudioHandler already initialized')
+    }
+  }, [])
   const loadFriends = async (userData = null) => {
     const user = userData || currentUser
     addDebugLogLocal(`loadFriends called, user: ${user ? JSON.stringify(user) : 'null'}`)
@@ -195,11 +203,6 @@ function App() {
     setShowCalling,
     setCallingTarget
   )
-
-  // Update global refs
-  useEffect(() => {
-    window.socketRef = socketRef
-  }, [socketRef])
 
   // Debug logging function
   const addDebugLogLocal = (message, type = 'info') => {
@@ -534,10 +537,14 @@ function App() {
         addDebugLogLocal(`Server-mediated call initiated with ID: ${callData.callId}`)
 
         // Set up audio processing for server relay with the new call data
-        AudioHandler.current.setCurrentCall(newCall)
-        const started = await AudioHandler.current.startRecording(localStreamRef.current)
-        if (!started) {
-          addDebugLogLocal('Failed to start audio recording', 'error')
+        if (AudioHandler.current) {
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording', 'error')
+          }
+        } else {
+          addDebugLogLocal('AudioHandler not initialized', 'error')
         }
       } else {
         throw new Error('Failed to initiate call')
@@ -614,10 +621,14 @@ function App() {
         addDebugLogLocal('Server-mediated call accepted and connected')
 
         // Set up audio processing for server relay with the new call data
-        AudioHandler.current.setCurrentCall(newCall)
-        const started = await AudioHandler.current.startRecording(localStreamRef.current)
-        if (!started) {
-          addDebugLogLocal('Failed to start audio recording', 'error')
+        if (AudioHandler.current) {
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording', 'error')
+          }
+        } else {
+          addDebugLogLocal('AudioHandler not initialized', 'error')
         }
       } else {
         throw new Error('Failed to send answer')

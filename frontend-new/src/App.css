@@ -250,28 +250,10 @@ html, body {
 /* Control Buttons - Responsive Orange Buttons */
 /* Control Buttons - Responsive Orange Buttons */
     .control-btn {
-        width: 100%;
-        max-width: 100px;
-        height: 40px;
-        font-size: 12px;
-    }
-
-.control-btn:hover {
-    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
-    transform: translateY(2px);
-    box-shadow:
-        0 2px 4px rgba(0,0,0,0.3),
-        inset 0 2px 0 rgba(255,255,255,0.2);
-}
-
-.control-btn:active {
-    transform: translateY(4px);
-    box-shadow: 
-        0 1px 2px rgba(0,0,0,0.3),
-        inset 0 1px 2px rgba(0,0,0,0.2);
-}
-
-/* Friends List - Responsive */
+        width: 80px;
+        height: 35px;
+        font-size: 11px;
+    }/* Friends List - Responsive */
 .friends-list {
     display: flex;
     flex-direction: column;
@@ -421,8 +403,8 @@ html, body {
     border-color: #00ff88;
 }
 
-/* Incoming Call Overlay */
-.incoming-call-overlay {
+/* Calling Overlay */
+.calling-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -435,7 +417,7 @@ html, body {
     z-index: 1000;
 }
 
-.incoming-call-content {
+.calling-content {
     background: #f0f0f0;
     border: 3px solid #ff6b35;
     border-radius: 12px;
@@ -445,53 +427,41 @@ html, body {
     width: 90%;
 }
 
-.caller-info h2 {
+.calling-content h2 {
     color: #000;
     font-size: 18px;
     margin-bottom: 10px;
     font-family: 'Courier New', monospace;
 }
 
-.caller-name {
+.calling-target {
     color: #ff6b35;
     font-size: 16px;
     font-weight: bold;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+.calling-status {
+    color: #666;
+    font-size: 14px;
     margin-bottom: 20px;
     font-family: 'Courier New', monospace;
 }
 
-.call-buttons {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-}
-
-.call-buttons .btn {
-    padding: 10px 20px;
+.cancel-call-btn {
+    background: #aa0000;
+    color: white;
     border: none;
     border-radius: 8px;
+    padding: 10px 20px;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     font-family: 'Courier New', monospace;
-    min-width: 80px;
 }
 
-.call-accept {
-    background: #00aa00;
-    color: white;
-}
-
-.call-accept:hover {
-    background: #008800;
-}
-
-.call-reject {
-    background: #aa0000;
-    color: white;
-}
-
-.call-reject:hover {
+.cancel-call-btn:hover {
     background: #880000;
 }
 
@@ -728,3 +698,141 @@ body {
         height: min(30vw, 120px);
     }
 }
+
+/* Calling Overlay */
+.calling-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.calling-content {
+    background: #f0f0f0;
+    border: 3px solid #ff6b35;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    max-width: 300px;
+    width: 90%;
+}
+
+.calling-content h2 {
+    color: #000;
+    font-size: 18px;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+.calling-target {
+    color: #ff6b35;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+.calling-status {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+    font-family: 'Courier New', monospace;
+}
+
+.cancel-call-btn {
+    background: #aa0000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    min-width: 100px;
+}
+
+.cancel-call-btn:hover {
+    background: #880000;
+}
+
+/* Incoming Call Overlay */
+.incoming-call-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+.incoming-call-content {
+    background: #f0f0f0;
+    border: 3px solid #ff6b35;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    max-width: 300px;
+    width: 90%;
+}
+
+.caller-info h2 {
+    color: #000;
+    font-size: 18px;
+    margin-bottom: 10px;
+    font-family: "Courier New", monospace;
+}
+
+.caller-name {
+    color: #ff6b35;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    font-family: "Courier New", monospace;
+}
+
+.call-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.call-buttons .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: "Courier New", monospace;
+    min-width: 80px;
+}
+
+.call-accept {
+    background: #00aa00;
+    color: white;
+}
+
+.call-accept:hover {
+    background: #008800;
+}
+
+.call-reject {
+    background: #aa0000;
+    color: white;
+}
+
+.call-reject:hover {
+    background: #880000;
+}
+

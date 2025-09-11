@@ -77,7 +77,8 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
 
       // Call events
       socketRef.current.on('incoming-call', (data) => {
-        addDebugLog(`Incoming call from: ${data.callerUsername}`);
+        addDebugLog(`Incoming call received from: ${data.callerUsername} (ID: ${data.caller})`);
+        console.log('Incoming call data:', data);
         setIncomingCaller(data.callerUsername);
         setIncomingCallData(data);
         setShowIncomingCall(true);
