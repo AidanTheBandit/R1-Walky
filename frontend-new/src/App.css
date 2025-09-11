@@ -1,4 +1,12 @@
-/* R1-Walky Full Screen Responsive Design */
+/* R1-Walky Walkie Talkie Design */
+
+/* Import PG font */
+@font-face {
+    font-family: 'PG';
+    src: url('/pg.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
 
 /* Reset and Full Screen Setup */
 * {
@@ -11,7 +19,8 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: 'Courier New', monospace;
+    font-family: 'PG', 'Courier New', monospace;
+    background: #000;
 }
 
 #root {
@@ -19,36 +28,63 @@ html, body {
     height: 100%;
 }
 
-/* R1 Device Container - Full Viewport */
+/* Main Walkie Talkie Container */
 .r1-device {
     width: 100vw;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: #000;
-    border: min(4px, 1vw) solid #ff6b35;
-    border-radius: min(12px, 2vw);
-    padding: min(8px, 1.5vw);
+    background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+    border: 2px solid #ff6b35;
+    border-radius: 8px;
+    padding: 6px;
     box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
 }
 
-/* LCD Screen - Responsive height */
+/* Add industrial texture overlay */
+.r1-device::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+    background-size: 8px 8px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.r1-device > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* LCD Screen - Redesigned for walkie talkie look */
 .lcd-screen {
     width: 100%;
-    height: 25vh;
+    height: 35vh;
     min-height: 100px;
-    max-height: 200px;
-    background: #f0f0f0;
-    border: 2px solid #333;
-    border-radius: min(8px, 1vw);
-    margin-bottom: min(8px, 1vh);
+    max-height: 180px;
+    background: linear-gradient(145deg, #2a4a2a 0%, #1a3a1a 100%);
+    border: 3px solid #333;
+    border-radius: 6px;
+    margin-bottom: 8px;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
+/* LCD scanlines effect */
 .lcd-screen::before {
     content: '';
     position: absolute;
@@ -59,160 +95,213 @@ html, body {
     background: repeating-linear-gradient(
         0deg,
         transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.03) 2px,
-        rgba(0, 0, 0, 0.03) 3px
+        transparent 1px,
+        rgba(0, 255, 0, 0.03) 1px,
+        rgba(0, 255, 0, 0.03) 2px
     );
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* LCD glow effect */
+.lcd-screen::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: radial-gradient(circle at center, rgba(0, 255, 0, 0.05) 0%, transparent 70%);
     pointer-events: none;
     z-index: 1;
 }
 
-/* LCD Content - Responsive text */
+/* LCD Content - Optimized for readability */
 .lcd-content {
     width: 100%;
     height: 100%;
-    padding: min(12px, 2vw);
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     text-align: center;
     box-sizing: border-box;
     position: relative;
     z-index: 2;
-    background: #f0f0f0;
-    color: #000;
-    font-family: 'Courier New', monospace;
+    background: transparent;
+    color: #00ff44;
+    font-family: 'PG', 'Courier New', monospace;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
+}
+
+.lcd-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.lcd-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lcd-content::-webkit-scrollbar-thumb {
+    background: #00ff44;
+    border-radius: 2px;
 }
 
 .lcd-text {
-    font-size: clamp(10px, 3vw, 18px);
-    color: #000 !important;
-    margin: min(3px, 0.5vh) 0;
+    font-size: clamp(11px, 3.5vw, 16px);
+    color: #00ff44 !important;
+    margin: 2px 0;
     font-weight: bold;
     background: transparent;
+    line-height: 1.2;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
 .lcd-title {
-    font-size: clamp(12px, 4vw, 24px);
+    font-size: clamp(14px, 4.5vw, 20px);
     font-weight: bold;
-    margin-bottom: min(6px, 1vh);
-    color: #000 !important;
+    margin-bottom: 6px;
+    color: #00ff44 !important;
     background: transparent;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+    letter-spacing: 1px;
 }
 
 .connect-message {
-    font-size: clamp(14px, 4.5vw, 28px);
-    color: #000 !important;
-    margin-bottom: min(4px, 0.8vh);
+    font-size: clamp(16px, 5vw, 24px);
+    color: #00ff44 !important;
+    margin-bottom: 4px;
     font-weight: bold;
     background: transparent;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
 }
 
 .status-line {
-    width: 80%;
-    height: min(2px, 0.3vh);
-    background: #000;
-    margin: min(6px, 1vh) 0;
+    width: 60%;
+    height: 2px;
+    background: #00ff44;
+    margin: 6px 0;
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
 }
 
 .status-text {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 80%;
-    font-size: clamp(12px, 3.5vw, 20px);
-    color: #000 !important;
+    width: 90%;
+    font-size: clamp(10px, 3vw, 14px);
+    color: #00ff44 !important;
     font-weight: bold;
     background: transparent;
+    margin-bottom: 2px;
 }
 
 .status-connected {
-    color: #00aa00 !important;
+    color: #00ff44 !important;
     font-weight: bold;
     background: transparent;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.5);
 }
 
 .status-disconnected {
-    color: #666 !important;
+    color: #ff4444 !important;
     background: transparent;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.5);
 }
 
-/* Bottom Section - Speaker and Buttons - FILL ALL REMAINING SPACE */
+/* Bottom Controls - Redesigned walkie talkie layout */
 .speaker-controls {
     flex: 1;
-    width: calc(100% - 4px);
-    height: calc(100vh - 220px);
+    width: 100%;
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 8px 16px 16px 16px;
-    margin: 2px;
-    background: #000;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
     box-sizing: border-box;
     position: relative;
-    min-height: 150px;
     overflow: hidden;
-    gap: 20px;
+    gap: 12px;
+    min-height: 120px;
 }
 
-/* Speaker Area - Responsive Circular Speaker */
+/* Large PTT Button - Main feature */
 .speaker-area {
-    width: min(40vw, 200px);
-    height: min(40vw, 200px);
-    max-width: 200px;
-    max-height: 200px;
+    width: clamp(80px, 25vw, 120px);
+    height: clamp(80px, 25vw, 120px);
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     position: relative;
     border-radius: 50%;
-    background: radial-gradient(circle, #444 0%, #222 50%, #111 100%);
-    border: 4px solid #333;
+    background: radial-gradient(circle at 30% 30%, #444 0%, #222 50%, #111 100%);
+    border: 3px solid #333;
     box-shadow: 
-        inset 0 0 20px rgba(0,0,0,0.5),
-        0 4px 8px rgba(0,0,0,0.3);
+        inset 0 0 10px rgba(0,0,0,0.7),
+        0 3px 6px rgba(0,0,0,0.4),
+        0 0 0 1px #555;
+    flex-shrink: 0;
 }
 
+/* PTT Button inner rings */
 .speaker-area::before {
     content: '';
     position: absolute;
-    width: 80%;
-    height: 80%;
+    width: 75%;
+    height: 75%;
     border-radius: 50%;
-    border: 3px solid #222;
-    background: radial-gradient(circle, #333 0%, #111 100%);
+    border: 2px solid #444;
+    background: radial-gradient(circle at 30% 30%, #333 0%, #111 100%);
+    z-index: 1;
 }
 
 .speaker-area::after {
     content: '';
     position: absolute;
-    width: 60%;
-    height: 60%;
+    width: 50%;
+    height: 50%;
     border-radius: 50%;
-    border: 2px solid #111;
-    background: radial-gradient(circle, #222 0%, #000 100%);
+    border: 1px solid #222;
+    background: radial-gradient(circle at 30% 30%, #222 0%, #000 100%);
+    z-index: 2;
 }
 
-.speaker-area:active {
-    background: radial-gradient(circle, #333 0%, #111 50%, #000 100%);
-    transform: scale(0.95);
+/* PTT Active state */
+.speaker-area:active,
+.speaker-area.ptt-active {
+    background: radial-gradient(circle at 30% 30%, #ff6b35 0%, #ff4500 50%, #cc3300 100%);
     border-color: #ff4500;
+    transform: scale(0.97);
     box-shadow: 
-        inset 0 0 30px rgba(255, 107, 53, 0.3),
-        0 2px 6px rgba(0,0,0,0.5);
+        inset 0 0 15px rgba(255, 107, 53, 0.8),
+        0 0 15px rgba(255, 107, 53, 0.6),
+        0 0 0 2px #ff6b35;
+}
+
+.speaker-area:active::before,
+.speaker-area.ptt-active::before {
+    border-color: #ff8855;
+    background: radial-gradient(circle at 30% 30%, #ff7744 0%, #dd3311 100%);
+}
+
+.speaker-area:active::after,
+.speaker-area.ptt-active::after {
+    border-color: #ffaa77;
+    background: radial-gradient(circle at 30% 30%, #ff9966 0%, #aa2200 100%);
 }
 
 .speaker-svg {
-    width: min(15vw, 60px);
-    height: min(15vw, 60px);
-    max-width: 60px;
-    max-height: 60px;
-    opacity: 0.9;
+    width: clamp(20px, 8vw, 35px);
+    height: clamp(20px, 8vw, 35px);
+    opacity: 0.8;
     filter: brightness(0.8) invert(1) contrast(1.2);
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     position: relative;
     z-index: 3;
 }
@@ -220,142 +309,289 @@ html, body {
 .speaker-area:hover .speaker-svg {
     opacity: 1;
     filter: brightness(1) invert(1) contrast(1.5);
-    transform: scale(1.1);
-}
-
-.speaker-area.ptt-active {
-    background: radial-gradient(circle, #ff6b35 0%, #ff4500 50%, #cc3300 100%);
-    border-color: #ff4500;
-    box-shadow: 
-        inset 0 0 30px rgba(255, 107, 53, 0.6),
-        0 0 20px rgba(255, 107, 53, 0.4);
+    transform: scale(1.05);
 }
 
 .speaker-area.ptt-active .speaker-svg {
     filter: brightness(1) invert(0) contrast(1.5);
+    transform: scale(1.1);
 }
 
-/* Controls Area - Responsive Buttons */
+/* Side Controls - Vertical layout */
 .controls-area {
     display: flex;
     flex-direction: column;
-    gap: min(3vw, 12px);
-    align-items: center;
-    justify-content: flex-start;
-    margin-left: min(8vw, 32px);
+    gap: 8px;
+    align-items: stretch;
+    justify-content: center;
     flex: 1;
-    max-width: 150px;
-    padding-top: 8px;
+    max-width: 100px;
+    padding: 0;
 }
 
-/* Control Buttons - Responsive Orange Buttons */
+/* Control Buttons - Walkie talkie style */
 .control-btn {
-    width: 80px;
-    height: 35px;
-    font-size: 11px;
-    background: linear-gradient(135deg, #333 0%, #222 100%);
+    width: 100%;
+    height: 32px;
+    font-size: clamp(9px, 2.5vw, 12px);
+    background: linear-gradient(145deg, #333 0%, #222 100%);
     color: #ccc;
     border: 1px solid #555;
     border-radius: 4px;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
+    font-family: 'PG', 'Courier New', monospace;
     font-weight: bold;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
     text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
 .control-btn:hover {
-    background: linear-gradient(135deg, #444 0%, #333 100%);
+    background: linear-gradient(145deg, #444 0%, #333 100%);
     color: #fff;
     border-color: #666;
-    transform: translateY(1px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
 .control-btn:active {
-    background: linear-gradient(135deg, #222 0%, #111 100%);
-    transform: translateY(2px);
-    box-shadow: 0 0 1px rgba(0,0,0,0.5);
-}/* Add Friend Section */
-.add-friend-section {
-    margin-bottom: min(8px, 1.5vh);
+    background: linear-gradient(145deg, #222 0%, #111 100%);
+    transform: translateY(1px);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0,0,0,0.5);
 }
 
-.add-friend-form {
+/* Special button states */
+.control-btn.active {
+    background: linear-gradient(145deg, #ff6b35 0%, #ff4500 100%);
+    color: #fff;
+    border-color: #ff6b35;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.2),
+        0 0 8px rgba(255, 107, 53, 0.4);
+}
+
+/* Friends List - LCD Style */
+.friends-list {
     display: flex;
     flex-direction: column;
-    gap: min(4px, 0.8vh);
-    margin-bottom: min(8px, 1.5vh);
-}
-
-.friend-input {
+    gap: 2px;
+    max-height: 40vh;
+    min-height: 60px;
+    overflow-y: auto;
+    overflow-x: hidden;
     width: 100%;
-    padding: min(4px, 0.8vw) min(8px, 1.5vw);
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #222;
-    color: #ccc;
-    font-family: 'Courier New', monospace;
-    font-size: clamp(10px, 2.5vw, 14px);
-    box-sizing: border-box;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    margin-top: 4px;
 }
 
-.friend-input:focus {
-    outline: none;
-    border-color: #ff6b35;
-    background: #333;
+.friends-list::-webkit-scrollbar {
+    width: 4px;
 }
 
-.friend-input::placeholder {
-    color: #888;
+.friends-list::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.form-buttons {
+.friends-list::-webkit-scrollbar-thumb {
+    background: #00ff44;
+    border-radius: 2px;
+}
+
+.friends-list::-webkit-scrollbar-thumb:hover {
+    background: #00dd33;
+}
+
+/* Add Friend Input - LCD themed */
+.add-friend-input-container {
     display: flex;
-    gap: min(4px, 0.8vw);
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 6px;
+    background: rgba(0, 255, 68, 0.05);
+    border: 1px solid rgba(0, 255, 68, 0.2);
+    border-radius: 4px;
+}
+
+.add-friend-input {
+    flex: 1;
+    border: 1px solid #00ff44;
+    border-radius: 3px;
+    padding: 4px 8px;
+    background: rgba(0, 20, 0, 0.8);
+    color: #00ff44;
+    font-family: 'PG', 'Courier New', monospace;
+    font-size: clamp(10px, 2.8vw, 13px);
+    outline: none;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-input:focus {
+    border-color: #00ff88;
+    background: rgba(0, 30, 0, 0.9);
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-input::placeholder {
+    color: rgba(0, 255, 68, 0.5);
+    font-style: italic;
+}
+
+.add-friend-check-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #00ff44;
+    border-radius: 3px;
+    background: rgba(0, 20, 0, 0.8);
+    color: #00ff44;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
     justify-content: center;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
-.submit-btn {
-    background: linear-gradient(135deg, #ff6b35 0%, #cc3300 100%);
-    color: #fff;
-    border: 1px solid #cc3300;
+.add-friend-check-btn:hover:not(:disabled) {
+    background: rgba(0, 40, 0, 0.9);
+    border-color: #00ff88;
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-check-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Friends Text List - LCD style */
+.friends-text-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 45vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
+}
+
+.friends-text-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.friends-text-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.friends-text-list::-webkit-scrollbar-thumb {
+    background: #00ff44;
+}
+
+/* Friend Text Line - LCD themed */
+.friend-text-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px dotted rgba(0, 255, 68, 0.3);
+    font-family: 'PG', 'Courier New', monospace;
+    font-size: clamp(11px, 3vw, 14px);
+    color: #00ff44;
+    position: relative;
+}
+
+.friend-text-line:last-child {
+    border-bottom: none;
+}
+
+.friend-text-name {
     flex: 1;
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
-.submit-btn:hover {
-    background: linear-gradient(135deg, #ff4500 0%, #aa0000 100%);
-    border-color: #aa0000;
+.friend-text-name:hover {
+    background: rgba(0, 255, 68, 0.1);
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
 }
 
-.cancel-btn {
-    background: linear-gradient(135deg, #666 0%, #444 100%);
-    color: #ccc;
-    border: 1px solid #555;
-    flex: 1;
+.friend-remove-x {
+    background: none;
+    border: none;
+    color: #ff4444;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 2px;
+    margin-left: 4px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.3);
 }
 
-.cancel-btn:hover {
-    background: linear-gradient(135deg, #777 0%, #555 100%);
-    color: #fff;
-    border-color: #666;
+.friend-remove-x:hover {
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff6666;
+    transform: scale(1.1);
+    text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
 }
 
-/* Updated Friend Item with Remove Button */
+/* No Friends Message - LCD themed */
+.no-friends {
+    text-align: center;
+    color: rgba(0, 255, 68, 0.6);
+    font-size: clamp(10px, 2.8vw, 13px);
+    font-style: italic;
+    padding: 12px;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.2);
+}
+
+/* Friend Item - LCD styled */
 .friend-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: min(6px, 1vw) min(12px, 2vw);
-    margin: min(2px, 0.3vh) 0;
+    padding: 6px 8px;
+    margin: 1px 0;
     border: 1px solid transparent;
-    font-size: clamp(10px, 2.5vw, 14px);
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: min(4px, 0.8vw);
+    font-size: clamp(11px, 3vw, 14px);
+    background: rgba(0, 255, 68, 0.05);
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    position: relative;
+    border: 1px solid rgba(0, 255, 68, 0.2);
+}
+
+.friend-item:hover {
+    background: rgba(0, 255, 68, 0.1);
+    transform: translateX(2px);
+    box-shadow: 0 2px 6px rgba(0, 255, 68, 0.2);
+    border-color: rgba(0, 255, 68, 0.4);
 }
 
 .friend-info {
@@ -367,36 +603,38 @@ html, body {
 }
 
 .remove-friend-btn {
-    background: linear-gradient(135deg, #662222 0%, #441111 100%);
-    color: #ccc;
-    border: 1px solid #662222;
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff4444;
+    border: 1px solid rgba(255, 68, 68, 0.3);
     border-radius: 50%;
-    width: min(20px, 4vw);
-    height: min(20px, 4vw);
-    font-size: min(12px, 2.5vw);
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: min(4px, 0.8vw);
-    transition: all 0.2s ease;
+    margin-left: 6px;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.3);
 }
 
 .remove-friend-btn:hover {
-    background: linear-gradient(135deg, #773333 0%, #552222 100%);
-    color: #fff;
-    border-color: #773333;
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff6666;
+    border-color: rgba(255, 68, 68, 0.5);
     transform: scale(1.1);
+    text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
 }
 
 .friend-item.callable {
-    background: rgba(255, 107, 53, 0.1);
-    border-color: #ff6b35;
+    background: rgba(0, 255, 68, 0.1);
+    border-color: rgba(0, 255, 68, 0.4);
 }
 
 .friend-item.calling {
-    background: rgba(255, 255, 0, 0.2);
-    border-color: #ffff00;
+    background: rgba(255, 204, 0, 0.1);
+    border-color: rgba(255, 204, 0, 0.4);
     animation: pulse 1s infinite;
 }
 
@@ -407,43 +645,45 @@ html, body {
 }
 
 .friend-item.incoming-call {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: #00ff00;
+    background: rgba(0, 255, 68, 0.15);
+    border-color: rgba(0, 255, 68, 0.6);
     animation: ring 0.5s infinite;
 }
 
 @keyframes ring {
     0% { transform: scale(1); }
-    25% { transform: scale(1.05); }
+    25% { transform: scale(1.02); }
     50% { transform: scale(1); }
-    75% { transform: scale(1.05); }
+    75% { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
 
 .friend-item.selected {
-    background: rgba(0, 170, 0, 0.2);
-    border-color: #00aa00;
-    box-shadow: 0 0 min(5px, 1vw) rgba(0, 170, 0, 0.3);
+    background: rgba(0, 255, 68, 0.2);
+    border-color: rgba(0, 255, 68, 0.6);
+    box-shadow: 0 0 8px rgba(0, 255, 68, 0.3);
 }
 
 .friend-name {
-    color: #000 !important;
+    color: #00ff44 !important;
     font-weight: bold;
     background: transparent;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
 .friend-status {
-    color: #00aa00 !important;
-    font-size: clamp(8px, 2vw, 12px);
+    color: #00dd33 !important;
+    font-size: clamp(8px, 2.2vw, 11px);
     font-weight: bold;
     background: transparent;
+    text-shadow: 0 0 2px rgba(0, 221, 51, 0.3);
 }
 
-/* Settings - Responsive */
+/* Settings - LCD styled */
 .settings-list {
     display: flex;
     flex-direction: column;
-    gap: min(6px, 1vh);
+    gap: 4px;
     width: 100%;
 }
 
@@ -451,414 +691,187 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: min(6px, 1vw) min(12px, 2vw);
-    font-size: clamp(10px, 2.5vw, 14px);
-    color: #000 !important;
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid #ccc;
-    border-radius: min(4px, 0.8vw);
+    padding: 6px 8px;
+    font-size: clamp(10px, 2.8vw, 13px);
+    color: #00ff44 !important;
+    background: rgba(0, 255, 68, 0.05);
+    border: 1px solid rgba(0, 255, 68, 0.2);
+    border-radius: 4px;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
-/* Back Button - Responsive */
+/* Back Button - Walkie talkie styled */
 .back-btn {
-    background: linear-gradient(135deg, #333 0%, #222 100%);
+    background: linear-gradient(145deg, #333 0%, #222 100%);
     border: 1px solid #555;
     color: #ccc !important;
-    font-size: clamp(8px, 2vw, 12px);
-    padding: min(4px, 0.8vw) min(8px, 1.5vw);
+    font-size: clamp(9px, 2.5vw, 12px);
+    padding: 4px 8px;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
-    margin-right: min(8px, 1.5vw);
+    font-family: 'PG', 'Courier New', monospace;
+    margin-right: 8px;
+    margin-bottom: 6px;
     border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    transition: all 0.2s ease;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
     font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    align-self: flex-start;
 }
 
 .back-btn:hover {
-    background: linear-gradient(135deg, #444 0%, #333 100%);
+    background: linear-gradient(145deg, #444 0%, #333 100%);
     color: #fff !important;
     border-color: #666;
-    transform: translateY(1px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
-/* No Data Message - Responsive */
+.back-btn:active {
+    background: linear-gradient(145deg, #222 0%, #111 100%);
+    transform: translateY(1px);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* No Data Message - LCD themed */
 .no-data {
     text-align: center;
-    color: #666 !important;
-    font-size: clamp(10px, 2.5vw, 14px);
-    padding: min(20px, 4vw);
+    color: rgba(0, 255, 68, 0.6) !important;
+    font-size: clamp(10px, 2.8vw, 13px);
+    padding: 12px;
     background: transparent;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.2);
 }
 
-/* Menu Options */
-.menu-options {
-    display: flex;
-    flex-direction: column;
-    gap: min(4px, 0.8vh);
-    width: 100%;
-    margin-top: min(8px, 1.5vh);
-}
-
-.menu-item {
-    background: rgba(0, 255, 136, 0.1);
-    border: 1px solid #00ff88;
-    color: #00ff88;
-    padding: min(6px, 1vw) min(12px, 2vw);
-    text-align: center;
-    font-size: clamp(10px, 2.5vw, 14px);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-radius: min(4px, 0.8vw);
-}
-
-.menu-item:hover {
-    background: rgba(0, 255, 136, 0.2);
-    box-shadow: 0 0 min(5px, 1vw) rgba(0, 255, 136, 0.3);
-}
-
-.menu-item.selected {
-    background: rgba(0, 255, 136, 0.3);
-    border-color: #00ff88;
-}
-
-/* Calling Overlay */
-.calling-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.calling-content {
-    background: #f0f0f0;
-    border: 3px solid #ff6b35;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    max-width: 300px;
-    width: 90%;
-}
-
-.calling-content h2 {
-    color: #000;
-    font-size: 18px;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-target {
-    color: #ff6b35;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-status {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 20px;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn {
-    background: #aa0000;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn:hover {
-    background: #880000;
-}
-
-/* Media Queries for Fine-tuning */
-@media (max-width: 480px) {
-    .r1-device {
-        border-width: 2px;
-        border-radius: 6px;
-        padding: 4px;
-    }
-    
-    .speaker-controls {
-        padding: 12px;
-        gap: 15px;
-    }
-    
-    .controls-area {
-        margin-left: 0;
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-    }
-    
-    .control-btn {
-        width: 100%;
-        max-width: 120px;
-        height: 40px;
-        font-size: 12px;
-    }
-}
-
-@media (orientation: landscape) and (max-height: 600px) {
-    .lcd-screen {
-        height: 25vh;
-        min-height: 120px;
-    }
-    
-    .speaker-area {
-        width: min(30vw, 150px);
-        height: min(30vw, 150px);
-    }
-    
-    .speaker-controls {
-        padding: 10px;
-        gap: 10px;
-    }
-}
-
-/* Hide old styles and prevent any footers */
-.screen, .header, .content, .btn, .status, footer, .footer {
-    display: none !important;
-}
-
-/* Ensure no scrolling or overflow */
-body {
-    overflow: hidden !important;
-}
-
-/* Hide any potential footer elements */
-*[class*="footer"], *[id*="footer"] {
-    display: none !important;
-}
-
-/* Media queries for different screen sizes */
-@media (max-width: 480px) {
-    .r1-device {
-        border-width: 2px;
-        padding: 4px;
-    }
-    
-    .lcd-screen {
-        height: 150px;
-    }
-    
-    .speaker-controls {
-        height: calc(100vh - 170px);
-        padding: 8px;
-        gap: 10px;
-    }
-    
-    .speaker-area {
-        width: min(35vw, 150px);
-        height: min(35vw, 150px);
-    }
-    
-    .control-btn {
-        font-size: min(3.5vw, 12px);
-    }
-}
-
-@media (max-width: 320px) {
-    .r1-device {
-        border-width: 1px;
-        padding: 2px;
-    }
-    
-    .lcd-screen {
-        height: 120px;
-    }
-    
-    .speaker-controls {
-        height: calc(100vh - 140px);
-        padding: 4px;
-        gap: 8px;
-    }
-    
-    .speaker-area {
-        width: min(30vw, 120px);
-        height: min(30vw, 120px);
-    }
-}
-
-/* Calling Overlay */
-.calling-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.calling-content {
-    background: #f0f0f0;
-    border: 3px solid #ff6b35;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    max-width: 300px;
-    width: 90%;
-}
-
-.calling-content h2 {
-    color: #000;
-    font-size: 18px;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-target {
-    color: #ff6b35;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-status {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 20px;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn {
-    background: #aa0000;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    min-width: 100px;
-}
-
-.cancel-call-btn:hover {
-    background: #880000;
-}
+/* Call Interface - Walkie talkie themed */
 .caller-info {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 8px;
 }
 
 .caller-name {
-    color: #ff6b35;
-    font-size: 16px;
+    color: #00ff44;
+    font-size: clamp(14px, 4vw, 18px);
     font-weight: bold;
     margin-bottom: 5px;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+    font-family: 'PG', 'Courier New', monospace;
 }
 
 .call-status {
-    color: #666;
-    font-size: 12px;
+    color: rgba(0, 255, 68, 0.8);
+    font-size: clamp(10px, 3vw, 14px);
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+    font-family: 'PG', 'Courier New', monospace;
 }
 
 .call-buttons {
     display: flex;
-    gap: 15px;
+    gap: 8px;
     justify-content: center;
-    margin-top: 20px;
+    margin-top: 8px;
+    flex-wrap: wrap;
 }
 
 .call-accept-btn, .call-reject-btn, .call-cancel-btn {
-    padding: 10px 20px;
+    padding: 6px 12px;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 4px;
+    font-size: clamp(10px, 2.8vw, 13px);
     font-weight: bold;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
-    min-width: 80px;
-    background: linear-gradient(135deg, #444 0%, #333 100%);
+    font-family: 'PG', 'Courier New', monospace;
+    min-width: 60px;
+    background: linear-gradient(145deg, #333 0%, #222 100%);
     color: #ccc;
     border: 1px solid #555;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
     transition: all 0.15s ease;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.call-accept-btn {
+    background: linear-gradient(145deg, #006600 0%, #004400 100%);
+    border-color: #008800;
+    color: #00ff44;
 }
 
 .call-accept-btn:hover {
-    background: linear-gradient(135deg, #555 0%, #444 100%);
-    color: #fff;
-    border-color: #666;
-    transform: translateY(1px);
+    background: linear-gradient(145deg, #008800 0%, #006600 100%);
+    border-color: #00aa00;
+    color: #00ff66;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
-.call-reject-btn {
-    background: linear-gradient(135deg, #662222 0%, #441111 100%);
-    border-color: #662222;
+.call-reject-btn, .call-cancel-btn {
+    background: linear-gradient(145deg, #660000 0%, #440000 100%);
+    border-color: #880000;
+    color: #ff4444;
 }
 
-.call-reject-btn:hover {
-    background: linear-gradient(135deg, #773333 0%, #552222 100%);
-    border-color: #773333;
-    transform: translateY(1px);
-}
-
-.call-cancel-btn {
-    background: linear-gradient(135deg, #444 0%, #333 100%);
-    border-color: #555;
-}
-
-.call-cancel-btn:hover {
-    background: linear-gradient(135deg, #555 0%, #444 100%);
-    border-color: #666;
-    transform: translateY(1px);
+.call-reject-btn:hover, .call-cancel-btn:hover {
+    background: linear-gradient(145deg, #880000 0%, #660000 100%);
+    border-color: #aa0000;
+    color: #ff6666;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
 /* End Call Button */
 .call-end-btn {
-    background: linear-gradient(135deg, #662222 0%, #441111 100%);
-    color: #ccc;
-    border: 1px solid #662222;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 12px;
+    background: linear-gradient(145deg, #660000 0%, #440000 100%);
+    color: #ff4444;
+    border: 1px solid #880000;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: clamp(10px, 2.8vw, 13px);
     font-weight: bold;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
-    margin-top: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    font-family: 'PG', 'Courier New', monospace;
+    margin-top: 5px;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
     transition: all 0.15s ease;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
 .call-end-btn:hover {
-    background: linear-gradient(135deg, #773333 0%, #552222 100%);
-    color: #fff;
-    border-color: #773333;
-    transform: translateY(1px);
+    background: linear-gradient(145deg, #880000 0%, #660000 100%);
+    color: #ff6666;
+    border-color: #aa0000;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
-/* Additional Call UI Styles */
+/* Calling info */
 .calling-info {
     text-align: center;
-    margin: 20px 0;
+    margin: 8px 0;
 }
 
 .target-name {
-    font-size: 18px;
+    font-size: clamp(16px, 4.5vw, 20px);
     font-weight: bold;
-    color: #ff6b35;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
+    color: #00ff44;
+    margin-bottom: 8px;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
 }
 

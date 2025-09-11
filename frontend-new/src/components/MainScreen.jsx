@@ -60,7 +60,6 @@ function MainScreen({
     if (newFriendUsername.trim()) {
       addFriend(newFriendUsername.trim())
       setNewFriendUsername('')
-      setShowAddFriend(false)
     }
   }
 
@@ -102,77 +101,48 @@ function MainScreen({
         FRIENDS
       </div>
 
-      {/* Add Friend Section */}
-      <div className="add-friend-section">
-        {!showAddFriend ? (
-          <button
-            className="control-btn add-friend-btn"
-            onClick={() => setShowAddFriend(true)}
-          >
-            ADD FRIEND
-          </button>
-        ) : (
-          <div className="add-friend-form">
-            <input
-              type="text"
-              className="friend-input"
-              placeholder="Enter username"
-              value={newFriendUsername}
-              onChange={(e) => setNewFriendUsername(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleAddFriend()
-                }
-              }}
-            />
-            <div className="form-buttons">
-              <button
-                className="control-btn submit-btn"
-                onClick={handleAddFriend}
-              >
-                ADD
-              </button>
-              <button
-                className="control-btn cancel-btn"
-                onClick={() => {
-                  setShowAddFriend(false)
-                  setNewFriendUsername('')
-                }}
-              >
-                CANCEL
-              </button>
-            </div>
-          </div>
-        )}
+      {/* Add Friend Input */}
+      <div className="add-friend-input-container">
+        <input
+          type="text"
+          className="add-friend-input"
+          placeholder="add friend"
+          value={newFriendUsername}
+          onChange={(e) => setNewFriendUsername(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleAddFriend()
+            }
+          }}
+        />
+        <button
+          className="add-friend-check-btn"
+          onClick={handleAddFriend}
+          disabled={!newFriendUsername.trim()}
+        >
+          ✓
+        </button>
       </div>
 
+      {/* Friends List */}
       {friends.length === 0 ? (
-        <div className="no-data">No friends</div>
+        <div className="no-friends">no friends</div>
       ) : (
-        <div className="friends-list">
+        <div className="friends-text-list">
           {friends.map((friend, index) => (
-            <div
-              key={friend.id}
-              className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''} callable`}
-            >
-              <div
-                className="friend-info"
+            <div key={friend.id} className="friend-text-line">
+              <span
+                className="friend-text-name"
                 onClick={() => callFriend(friend)}
               >
-                <div className="friend-name">{friend.username}</div>
-                <div className="friend-status">
-                  {friend.status === 'online' ? '●' : '○'}
-                </div>
-              </div>
+                {friend.username}
+              </span>
               <button
-                className="remove-friend-btn"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleRemoveFriend(friend.id)
-                }}
+                className="friend-remove-x"
+                onClick={() => handleRemoveFriend(friend.id)}
                 title="Remove friend"
               >
-                ✕
+                ×
               </button>
             </div>
           ))}
