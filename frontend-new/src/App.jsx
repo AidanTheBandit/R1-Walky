@@ -45,11 +45,6 @@ function App() {
   const peerConnectionRef = useRef(null)
   const AudioHandler = useRef(null)
 
-  // Make refs available globally for audio handler
-  window.socketRef = useRef(null)
-  window.ringtoneRef = ringtoneRef
-  window.volumeLevel = volumeLevel
-
   // Initialize AudioHandler
   useEffect(() => {
     if (!AudioHandler.current) {
@@ -57,6 +52,17 @@ function App() {
       addDebugLogLocal('AudioHandler initialized successfully')
     } else {
       addDebugLogLocal('AudioHandler already initialized')
+    }
+
+    // Initialize audio context early
+    if (AudioHandler.current) {
+      AudioHandler.current.initAudioContext().then(success => {
+        if (success) {
+          addDebugLogLocal('Audio context initialized early')
+        } else {
+          addDebugLogLocal('Failed to initialize audio context early', 'error')
+        }
+      })
     }
   }, [])
   const loadFriends = async (userData = null) => {
@@ -202,6 +208,14 @@ function App() {
     setShowCalling,
     setCallingTarget
   )
+
+  // Make refs available globally for audio handler (after socket is initialized)
+  useEffect(() => {
+    window.socketRef = socketRef
+    window.ringtoneRef = ringtoneRef
+    window.volumeLevel = volumeLevel
+    addDebugLogLocal('Global refs initialized')
+  }, [socketRef])
 
   // Debug logging function
   const addDebugLogLocal = (message, type = 'info') => {
@@ -775,11 +789,13 @@ function App() {
     }
 
     // Send audio stream started event
-    if (socketRef.current) {
+    if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('start-audio-stream', {
         callId: currentCall.id
       })
       addDebugLogLocal('Sent audio stream started event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT start event', 'warn')
     }
   }
 
@@ -807,11 +823,13 @@ function App() {
     }
 
     // Send audio stream stopped event
-    if (socketRef.current) {
+    if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('stop-audio-stream', {
         callId: currentCall.id
       })
       addDebugLogLocal('Sent audio stream stopped event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT end event', 'warn')
     }
   }
 
