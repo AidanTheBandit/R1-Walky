@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import FriendRequests from './FriendRequests'
 import FriendsList from './FriendsList'
 import PTTButton from './PTTButton'
-import LocationChannels from './LocationChannels'
 import GroupCallOverlay from './GroupCallOverlay'
 import speakerSvg from '../assets/speaker.svg'
 
@@ -44,11 +43,15 @@ function MainScreen({
       // Don't allow navigation away from call screens
       return
     }
-    // Reset to main screen when call states are cleared
-    if (currentScreen !== 'main' && currentScreen !== 'friends' && currentScreen !== 'channels' && currentScreen !== 'settings') {
+    // Reset to main screen when call states are cleared or when call becomes connected
+    if (currentScreen !== 'main' && currentScreen !== 'friends' && currentScreen !== 'settings') {
       setCurrentScreen('main')
     }
-  }, [showIncomingCall, showCalling, currentScreen])
+    // If we're in friends screen and a call becomes connected, go to main
+    if (currentScreen === 'friends' && currentCall && currentCall.status === 'connected') {
+      setCurrentScreen('main')
+    }
+  }, [showIncomingCall, showCalling, currentScreen, currentCall])
 
   const renderMainScreen = () => (
     <div className="lcd-content">
@@ -56,8 +59,6 @@ function MainScreen({
         <div>
           <div className="lcd-text lcd-title">R1-WALKY</div>
           <div className="lcd-text">Connected to "{currentCall.targetUsername}"</div>
-          <div className="lcd-text">----------------------</div>
-          <div className="lcd-text lcd-status">Status: {currentCall.status === 'connected' ? 'Connected' : currentCall.status}</div>
           <div className="call-buttons">
             <button className="call-end-btn" onClick={endCall}>
               📞 END CALL
@@ -117,6 +118,26 @@ function MainScreen({
     </div>
   )
 
+  const renderSettingsScreen = () => (
+    <div className="lcd-content">
+      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
+      <div className="lcd-text lcd-title">
+        SETTINGS
+      </div>
+      <div className="settings-list">
+        <div className="setting-item">
+          <span>Volume: {Math.round(volumeLevel * 100)}%</span>
+        </div>
+        <div className="setting-item">
+          <span>Connection: {connectionStatus}</span>
+        </div>
+        <div className="setting-item">
+          <span>Username: {currentUser?.username || 'Not set'}</span>
+        </div>
+      </div>
+    </div>
+  )
+
   const renderIncomingCallScreen = () => (
     <div className="lcd-content">
       <div className="lcd-text lcd-title">
@@ -167,8 +188,6 @@ function MainScreen({
     switch (currentScreen) {
       case 'friends':
         return renderFriendsScreen()
-      case 'channels':
-        return renderChannelsScreen()
       case 'settings':
         return renderSettingsScreen()
       default:
@@ -200,19 +219,13 @@ function MainScreen({
             className="control-btn friends-btn"
             onClick={() => setCurrentScreen('friends')}
           >
-            FRIENDS
-          </button>
-          <button
-            className="control-btn channels-btn"
-            onClick={() => setCurrentScreen('channels')}
-          >
-            CHANNELS
+            👥 FRIENDS
           </button>
           <button
             className="control-btn settings-btn"
             onClick={() => setCurrentScreen('settings')}
           >
-            SETTINGS
+            ⚙️ SETTINGS
           </button>
         </div>
       </div>
