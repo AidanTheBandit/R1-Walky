@@ -76,7 +76,10 @@ function MainScreen({
     <div className="lcd-content">
       {currentCall ? (
         <div>
-          <div className="lcd-title">CONNECTED</div>
+          <div className="lcd-title">
+            <span className="status-led calling"></span>
+            CONNECTED
+          </div>
           <div className="status-line"></div>
           <div className="lcd-text">TO: {currentCall.targetUsername.toUpperCase()}</div>
           <div className="lcd-text" style={{ color: isPTTPressed ? '#ff6b35' : '#00ff44', textShadow: isPTTPressed ? '0 0 4px rgba(255, 107, 53, 0.5)' : '0 0 2px rgba(0, 255, 68, 0.3)' }}>
@@ -90,7 +93,10 @@ function MainScreen({
         </div>
       ) : (
         <div>
-          <div className="lcd-title">R1-WALKY</div>
+          <div className="lcd-title">
+            <span className={`status-led ${connectionStatus === 'Connected' ? 'connected' : 'disconnected'}`}></span>
+            R1-WALKY
+          </div>
           <div className="status-line"></div>
           <div className="lcd-text">CALLSIGN: {currentUser?.username?.toUpperCase() || 'UNKNOWN'}</div>
           <div className="lcd-text" style={{ 
@@ -101,7 +107,13 @@ function MainScreen({
           </div>
           {friendRequests.length > 0 && (
             <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)' }}>
+              <span className="status-led calling"></span>
               {friendRequests.length} PENDING REQUEST{friendRequests.length > 1 ? 'S' : ''}
+            </div>
+          )}
+          {friends.length > 0 && (
+            <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', opacity: 0.8 }}>
+              {friends.length} CONTACT{friends.length > 1 ? 'S' : ''} AVAILABLE
             </div>
           )}
         </div>
@@ -308,6 +320,25 @@ function MainScreen({
 
   return (
     <div className="r1-device">
+      {/* Antenna indicator */}
+      <div className="antenna-indicator"></div>
+      
+      {/* Signal strength indicator */}
+      <div className="signal-strength">
+        <div className={`signal-bar ${connectionStatus === 'Connected' ? 'active' : ''}`}></div>
+        <div className={`signal-bar ${connectionStatus === 'Connected' ? 'active' : ''}`}></div>
+        <div className={`signal-bar ${connectionStatus === 'Connected' ? 'active' : ''}`}></div>
+        <div className={`signal-bar ${connectionStatus === 'Connected' ? 'active' : ''}`}></div>
+      </div>
+      
+      {/* Volume indicator */}
+      <div className="volume-indicator">
+        <div className={`volume-bar ${volumeLevel > 0.25 ? 'active' : ''}`}></div>
+        <div className={`volume-bar ${volumeLevel > 0.5 ? 'active' : ''}`}></div>
+        <div className={`volume-bar ${volumeLevel > 0.75 ? 'active' : ''}`}></div>
+        <div className={`volume-bar ${volumeLevel > 1 ? 'active' : ''}`}></div>
+      </div>
+
       {/* LCD Screen - Takes up most of the space */}
       <div className="lcd-screen">
         {renderCurrentScreen()}
@@ -316,7 +347,7 @@ function MainScreen({
       {/* Speaker and Controls Section - Fixed height at bottom */}
       <div className="speaker-controls">
         <div
-          className={`speaker-area ${isPTTPressed ? 'ptt-active' : ''}`}
+          className={`speaker-area enhanced ${isPTTPressed ? 'ptt-active' : ''}`}
           onClick={isPTTPressed ? handlePTTEnd : handlePTTStart}
         >
           <img
@@ -325,6 +356,7 @@ function MainScreen({
             className="speaker-svg"
           />
         </div>
+        
         <div className="controls-area">
           <button
             className={`control-btn friends-btn ${currentScreen === 'friends' ? 'active' : ''}`}
