@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { addDebugLog } from '../utils/api.js';
 
-export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFriendRequests, loadFriends, setCallStatus, setCurrentCall, setShowIncomingCall, setIncomingCaller, setIncomingCallData, endCall, AudioHandler) => {
+export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFriendRequests, loadFriends, setCallStatus, setCurrentCall, setShowIncomingCall, setIncomingCaller, setIncomingCallData, endCall, AudioHandler, setShowCalling, setCallingTarget) => {
   const socketRef = useRef(null);
 
   const connectSocket = (userData = null) => {
@@ -94,6 +94,10 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
       socketRef.current.on('call-answered', async (data) => {
         addDebugLog('Call answered by recipient');
         setCallStatus(`Connected to ${data.answererUsername}`);
+
+        // Hide calling overlay
+        setShowCalling(false);
+        setCallingTarget('');
 
         // For server-mediated calls, just update status
         if (setCurrentCall) {

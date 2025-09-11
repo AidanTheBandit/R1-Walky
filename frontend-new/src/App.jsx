@@ -3,7 +3,7 @@ import { io } from 'socket.io-client'
 import './App.css'
 import LoginScreen from './components/LoginScreen'
 import MainScreen from './components/MainScreen'
-import IncomingCallOverlay from './components/IncomingCallOverlay'
+import IncomingCallOverlay, { CallingOverlay } from './components/IncomingCallOverlay'
 import DebugOverlay from './components/DebugOverlay'
 import { makeXMLHttpRequest, addDebugLog } from './utils/api'
 import { AudioHandlerClass } from './utils/AudioHandler'
@@ -37,6 +37,8 @@ function App() {
   const [showDebug, setShowDebug] = useState(false)
   const [showGroupCall, setShowGroupCall] = useState(false)
   const [groupCallData, setGroupCallData] = useState(null)
+  const [showCalling, setShowCalling] = useState(false)
+  const [callingTarget, setCallingTarget] = useState('')
 
   const ringtoneRef = useRef(null)
   const remoteAudioRef = useRef(null)
@@ -172,6 +174,8 @@ function App() {
     setCurrentCall(null)
     setCallStatus('')
     setIsPTTPressed(false)
+    setShowCalling(false)
+    setCallingTarget('')
     addDebugLogLocal('Call ended locally')
   }
 
@@ -187,7 +191,9 @@ function App() {
     setIncomingCaller,
     setIncomingCallData,
     endCall,
-    AudioHandler
+    AudioHandler,
+    setShowCalling,
+    setCallingTarget
   )
 
   // Update global refs
@@ -476,6 +482,8 @@ function App() {
     if (!currentUser || currentCall) return
 
     try {
+      setCallingTarget(friend.username)
+      setShowCalling(true)
       setCallStatus(`Calling ${friend.username}...`)
       addDebugLogLocal(`Initiating server-mediated call to ${friend.username}`)
 
@@ -537,6 +545,8 @@ function App() {
     } catch (error) {
       addDebugLogLocal(`Call error: ${error.message}`, 'error')
       setCallStatus(`Call failed: ${error.message}`)
+      setShowCalling(false)
+      setCallingTarget('')
       endCall()
     }
   }
@@ -640,8 +650,9 @@ function App() {
           },
           body: JSON.stringify({ callId: incomingCallData.callId })
         })
+        addDebugLogLocal('Sent reject call request to server')
       } catch (error) {
-        addDebugLogLocal(`Failed to reject call: ${error.message}`, 'error')
+        addDebugLogLocal(`Failed to reject call on server: ${error.message}`, 'error')
       }
     }
 
@@ -649,6 +660,49 @@ function App() {
     setIncomingCaller('')
     setIncomingCallData(null)
     setCallStatus('Call rejected')
+    addDebugLogLocal('Call rejected')
+  }
+
+  const cancelCall = async () => {
+    addDebugLogLocal('Cancelling outgoing call')
+    
+    // Stop local media
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop()
+        addDebugLogLocal(`Stopped ${track.kind} track`)
+      })
+      localStreamRef.current = null
+    }
+
+    // Clean up audio processing
+    if (AudioHandler.current) {
+      AudioHandler.current.cleanup()
+    }
+
+    // Send end call event if there's an active call
+    if (currentCall) {
+      try {
+        await makeXMLHttpRequest('/api/calls/end', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': currentUser.id
+          },
+          body: JSON.stringify({ callId: currentCall.id })
+        })
+        addDebugLogLocal('Sent cancel call request to server')
+      } catch (error) {
+        addDebugLogLocal(`Failed to cancel call on server: ${error.message}`, 'error')
+      }
+    }
+
+    setCurrentCall(null)
+    setCallStatus('')
+    setIsPTTPressed(false)
+    setShowCalling(false)
+    setCallingTarget('')
+    addDebugLogLocal('Call cancelled')
   }
 
   const handleGroupCallStarted = (data) => {
@@ -922,6 +976,13 @@ function App() {
         incomingCaller={incomingCaller}
         acceptCall={acceptCall}
         rejectCall={rejectCall}
+      />
+
+      <CallingOverlay
+        showCalling={showCalling}
+        targetName={callingTarget}
+        callStatus={callStatus}
+        cancelCall={cancelCall}
       />
 
       {/* Debug Overlay */}

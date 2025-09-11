@@ -106,12 +106,14 @@ class Database {
                         id TEXT PRIMARY KEY,
                         channel_id TEXT,
                         caller_id TEXT,
+                        callee_id TEXT,
                         status TEXT DEFAULT 'pending',
                         audio_stream_active INTEGER DEFAULT 0,
                         is_group_call INTEGER DEFAULT 0,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (channel_id) REFERENCES location_channels (id),
-                        FOREIGN KEY (caller_id) REFERENCES users (id)
+                        FOREIGN KEY (caller_id) REFERENCES users (id),
+                        FOREIGN KEY (callee_id) REFERENCES users (id)
                     )`, (err) => {
                         if (err) {
                             console.error('❌ Error creating active_calls table:', err);
