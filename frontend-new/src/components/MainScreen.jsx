@@ -55,9 +55,14 @@ function MainScreen({
       {currentCall ? (
         <div>
           <div className="lcd-text lcd-title">R1-WALKY</div>
-          <div className="lcd-text">Connect with "{currentCall.targetUsername}"</div>
+          <div className="lcd-text">Connected to "{currentCall.targetUsername}"</div>
           <div className="lcd-text">----------------------</div>
           <div className="lcd-text lcd-status">Status: {currentCall.status === 'connected' ? 'Connected' : currentCall.status}</div>
+          <div className="call-buttons">
+            <button className="call-end-btn" onClick={endCall}>
+              📞 END CALL
+            </button>
+          </div>
         </div>
       ) : (
         <div>

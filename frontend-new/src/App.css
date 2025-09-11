@@ -828,6 +828,28 @@ body {
     transform: translateY(2px);
 }
 
+/* End Call Button */
+.call-end-btn {
+    background: linear-gradient(135deg, #aa0000 0%, #880000 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    margin-top: 10px;
+    border: 2px solid #660000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
+}
+
+.call-end-btn:hover {
+    background: linear-gradient(135deg, #880000 0%, #660000 100%);
+    transform: translateY(2px);
+}
+
 /* Additional Call UI Styles */
 .calling-info {
     text-align: center;
