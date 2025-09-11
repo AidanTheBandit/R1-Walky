@@ -37,8 +37,128 @@ function MainScreen({
 }) {
   const [currentScreen, setCurrentScreen] = useState('main')
   const [selectedFriendIndex, setSelectedFriendIndex] = useState(0)
+  const [selectedRequestIndex, setSelectedRequestIndex] = useState(0)
+  const [selectedMenuIndex, setSelectedMenuIndex] = useState(0)
   const [showAddFriend, setShowAddFriend] = useState(false)
   const [newFriendUsername, setNewFriendUsername] = useState('')
+
+  // Main menu options
+  const mainMenuOptions = ['FRIENDS', 'REQUESTS', 'SETTINGS']
+
+  // Handle scroll wheel navigation
+  useEffect(() => {
+    const handleScrollUp = () => {
+      if (showIncomingCall || showCalling) return // Don't navigate during calls
+      
+      if (currentScreen === 'main') {
+        // Navigate through main menu
+        setSelectedMenuIndex(prev => Math.max(0, prev - 1))
+      } else if (currentScreen === 'friends') {
+        // Navigate through combined requests + friends list
+        const totalItems = friendRequests.length + friends.length;
+        if (totalItems > 0) {
+          setSelectedFriendIndex(prev => Math.max(0, prev - 1))
+        }
+      } else if (currentScreen === 'requests') {
+        // Navigate through friend requests
+        if (friendRequests.length > 0) {
+          setSelectedRequestIndex(prev => Math.max(0, prev - 1))
+        }
+      }
+    }
+
+    const handleScrollDown = () => {
+      if (showIncomingCall || showCalling) return // Don't navigate during calls
+      
+      if (currentScreen === 'main') {
+        // Navigate through main menu
+        setSelectedMenuIndex(prev => Math.min(mainMenuOptions.length - 1, prev + 1))
+      } else if (currentScreen === 'friends') {
+        // Navigate through combined requests + friends list
+        const totalItems = friendRequests.length + friends.length;
+        if (totalItems > 0) {
+          setSelectedFriendIndex(prev => Math.min(totalItems - 1, prev + 1))
+        }
+      } else if (currentScreen === 'requests') {
+        // Navigate through friend requests
+        if (friendRequests.length > 0) {
+          setSelectedRequestIndex(prev => Math.min(friendRequests.length - 1, prev + 1))
+        }
+      }
+    }
+
+    const handleSideClick = () => {
+      if (showIncomingCall) {
+        acceptCall()
+        return
+      }
+      if (showCalling) {
+        cancelCall()
+        return
+      }
+      
+      if (currentScreen === 'main') {
+        // Select current menu option
+        const selectedOption = mainMenuOptions[selectedMenuIndex]
+        if (selectedOption === 'FRIENDS') {
+          setCurrentScreen('friends')
+          setSelectedFriendIndex(0)
+        } else if (selectedOption === 'REQUESTS') {
+          setCurrentScreen('requests')
+          setSelectedRequestIndex(0)
+        } else if (selectedOption === 'SETTINGS') {
+          setCurrentScreen('settings')
+        }
+      } else if (currentScreen === 'friends') {
+        // Handle selection in combined friends/requests list
+        const totalItems = friendRequests.length + friends.length;
+        if (totalItems > 0 && selectedFriendIndex < totalItems) {
+          if (selectedFriendIndex < friendRequests.length) {
+            // Selected item is a friend request - accept it
+            const request = friendRequests[selectedFriendIndex];
+            acceptFriendRequest(request.friendshipId || request.id);
+          } else {
+            // Selected item is a friend - call them
+            const friendIndex = selectedFriendIndex - friendRequests.length;
+            if (friends[friendIndex]) {
+              callFriend(friends[friendIndex]);
+            }
+          }
+        }
+      } else if (currentScreen === 'requests') {
+        // Accept selected friend request
+        if (friendRequests.length > 0 && friendRequests[selectedRequestIndex]) {
+          acceptFriendRequest(friendRequests[selectedRequestIndex].friendshipId)
+        }
+      } else {
+        // Go back to main screen from other screens
+        setCurrentScreen('main')
+        setSelectedMenuIndex(0)
+      }
+    }
+
+    // Add event listeners for R1 hardware events
+    window.addEventListener('scrollUp', handleScrollUp)
+    window.addEventListener('scrollDown', handleScrollDown)
+    window.addEventListener('sideClick', handleSideClick)
+
+    return () => {
+      window.removeEventListener('scrollUp', handleScrollUp)
+      window.removeEventListener('scrollDown', handleScrollDown)
+      window.removeEventListener('sideClick', handleSideClick)
+    }
+  }, [currentScreen, selectedMenuIndex, selectedFriendIndex, selectedRequestIndex, friends, friendRequests, showIncomingCall, showCalling, callFriend, acceptFriendRequest, acceptCall, cancelCall])
+
+  // Reset selection when screens change
+  useEffect(() => {
+    if (currentScreen === 'friends') {
+      setSelectedFriendIndex(0)
+    } else if (currentScreen === 'requests') {
+      setSelectedRequestIndex(0)
+    } else if (currentScreen === 'main') {
+      setSelectedMenuIndex(0)
+    }
+  }, [currentScreen])
 
   // Handle automatic screen switching for call states
   useEffect(() => {
@@ -46,29 +166,60 @@ function MainScreen({
       // Don't allow navigation away from call screens
       return
     }
-    // Reset to main screen when call states are cleared or when call becomes connected
-    if (currentScreen !== 'main' && currentScreen !== 'friends' && currentScreen !== 'settings') {
+    // If we're in a screen and a call becomes connected, go to main
+    if (currentCall && currentCall.status === 'connected') {
       setCurrentScreen('main')
     }
-    // If we're in friends screen and a call becomes connected, go to main
-    if (currentScreen === 'friends' && currentCall && currentCall.status === 'connected') {
-      setCurrentScreen('main')
-    }
-  }, [showIncomingCall, showCalling, currentScreen, currentCall])
+  }, [showIncomingCall, showCalling, currentCall])
 
-  const handleAddFriend = () => {
-    if (newFriendUsername.trim()) {
-      addFriend(newFriendUsername.trim())
-      setNewFriendUsername('')
+  const handleAddFriend = async () => {
+    if (!newFriendUsername.trim()) return;
+    
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser?.id
+        },
+        body: JSON.stringify({
+          friendUsername: newFriendUsername.trim()
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('Friend request sent successfully');
+        setNewFriendUsername('');
+        // Optionally show success feedback
+      } else {
+        console.error('Failed to send friend request:', data.error);
+        // Could show error message to user
+      }
+    } catch (error) {
+      console.error('Error sending friend request:', error);
     }
   }
 
-  const handleRemoveFriend = (friendId) => {
-    if (removeFriend) {
-      removeFriend(friendId)
-    } else {
-      // Fallback if removeFriend prop is not provided
-      console.log('Remove friend functionality not implemented:', friendId)
+  const handleRemoveFriend = async (friendId) => {
+    try {
+      const response = await fetch(`/api/friends/${friendId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-User-ID': currentUser?.id
+        }
+      });
+
+      if (response.ok) {
+        console.log('Friend removed successfully');
+        // The friends list will be updated through the socket connection
+      } else {
+        const data = await response.json();
+        console.error('Failed to remove friend:', data.error);
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
     }
   }
 
@@ -105,17 +256,25 @@ function MainScreen({
           }}>
             STATUS: {connectionStatus.toUpperCase()}
           </div>
+          
+          <div className="status-line" style={{ marginTop: '12px' }}></div>
+          
           {friendRequests.length > 0 && (
-            <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)' }}>
+            <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)', textAlign: 'center' }}>
               <span className="status-led calling"></span>
               {friendRequests.length} PENDING REQUEST{friendRequests.length > 1 ? 'S' : ''}
             </div>
           )}
+          
           {friends.length > 0 && (
-            <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', opacity: 0.8 }}>
+            <div className="lcd-text" style={{ textAlign: 'center', marginTop: '6px' }}>
               {friends.length} CONTACT{friends.length > 1 ? 'S' : ''} AVAILABLE
             </div>
           )}
+          
+          <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', textAlign: 'center', marginTop: '12px', opacity: 0.8 }}>
+            USE CONTACTS BUTTON
+          </div>
         </div>
       )}
     </div>
@@ -127,40 +286,218 @@ function MainScreen({
       <div className="lcd-title">CONTACTS</div>
       <div className="status-line"></div>
 
-      {/* Add Friend Input */}
-      <div className="add-friend-input-container">
-        <input
-          type="text"
-          className="add-friend-input"
-          placeholder="add contact"
-          value={newFriendUsername}
-          onChange={(e) => setNewFriendUsername(e.target.value.toLowerCase())}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              handleAddFriend()
-            }
-          }}
-          style={{ textTransform: 'uppercase' }}
-        />
-        <button
-          className="add-friend-check-btn"
-          onClick={handleAddFriend}
-          disabled={!newFriendUsername.trim()}
-        >
-          +
-        </button>
+      <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', marginBottom: '6px' }}>
+        SCROLL: NAVIGATE | SIDE: CALL/ACCEPT
       </div>
 
-      {/* Friend Requests */}
-      {friendRequests.length > 0 && (
-        <div style={{ marginBottom: '8px' }}>
-          <div className="lcd-text" style={{ color: '#ffaa00', marginBottom: '4px' }}>
-            PENDING REQUESTS:
+      {/* Scrollable content area */}
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        overflowY: 'auto',
+        paddingRight: '4px',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#00ff44 transparent'
+      }}>
+        
+        {/* Friend Requests Section */}
+        {friendRequests.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <div className="lcd-text" style={{ 
+              color: '#ffaa00', 
+              marginBottom: '4px',
+              fontSize: 'clamp(10px, 2.8vw, 13px)',
+              fontWeight: 'bold'
+            }}>
+              REQUESTS ({friendRequests.length}):
+            </div>
+            {friendRequests.map((request, index) => {
+              const isSelected = selectedFriendIndex === index && selectedFriendIndex < friendRequests.length;
+              return (
+                <div 
+                  key={request.friendshipId || request.id} 
+                  className="friend-text-line"
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(255, 170, 0, 0.3)' : 'rgba(255, 170, 0, 0.1)',
+                    border: isSelected ? '1px solid rgba(255, 170, 0, 0.6)' : '1px solid rgba(255, 170, 0, 0.3)',
+                    borderRadius: '2px',
+                    margin: '1px 0',
+                    padding: '3px 6px'
+                  }}
+                >
+                  <span style={{
+                    color: '#ffaa00',
+                    fontSize: 'clamp(10px, 2.8vw, 13px)',
+                    textShadow: isSelected ? '0 0 4px rgba(255, 170, 0, 0.5)' : '0 0 2px rgba(255, 170, 0, 0.3)'
+                  }}>
+                    {isSelected ? '> ' : '  '}{request.username?.toUpperCase() || 'UNKNOWN'}
+                  </span>
+                  <div style={{ display: 'flex', gap: '3px' }}>
+                    <button
+                      style={{
+                        background: 'rgba(0, 255, 68, 0.2)',
+                        border: '1px solid #00ff44',
+                        color: '#00ff44',
+                        fontSize: '9px',
+                        padding: '1px 4px',
+                        borderRadius: '2px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => acceptFriendRequest(request.friendshipId || request.id)}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      style={{
+                        background: 'rgba(255, 68, 68, 0.2)',
+                        border: '1px solid #ff4444',
+                        color: '#ff4444',
+                        fontSize: '9px',
+                        padding: '1px 4px',
+                        borderRadius: '2px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => rejectFriendRequest(request.friendshipId || request.id)}
+                    >
+                      ✗
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          {friendRequests.map((request) => (
-            <div key={request.id} className="friend-text-line" style={{ background: 'rgba(255, 170, 0, 0.1)' }}>
-              <span className="friend-text-name">
-                {request.requesterUsername?.toUpperCase() || 'UNKNOWN'}
+        )}
+
+        {/* Friends Section */}
+        <div style={{ marginBottom: '8px' }}>
+          <div className="lcd-text" style={{ 
+            color: '#00ff44', 
+            marginBottom: '4px',
+            fontSize: 'clamp(10px, 2.8vw, 13px)',
+            fontWeight: 'bold'
+          }}>
+            CONTACTS ({friends.length}):
+          </div>
+          
+          {friends.length === 0 ? (
+            <div className="no-friends" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)' }}>
+              NO CONTACTS ADDED
+            </div>
+          ) : (
+            friends.map((friend, index) => {
+              const friendIndex = friendRequests.length + index;
+              const isSelected = selectedFriendIndex === friendIndex;
+              return (
+                <div 
+                  key={friend.id} 
+                  className="friend-text-line"
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(0, 255, 68, 0.2)' : 'transparent',
+                    border: isSelected ? '1px solid rgba(0, 255, 68, 0.5)' : '1px solid transparent',
+                    borderRadius: '2px',
+                    margin: '1px 0',
+                    padding: '3px 6px'
+                  }}
+                >
+                  <span
+                    className="friend-text-name"
+                    onClick={() => callFriend(friend)}
+                    style={{ 
+                      fontSize: 'clamp(10px, 2.8vw, 13px)',
+                      textShadow: isSelected ? '0 0 4px rgba(0, 255, 68, 0.5)' : '0 0 2px rgba(0, 255, 68, 0.3)'
+                    }}
+                  >
+                    {isSelected ? '> ' : '  '}{friend.username.toUpperCase()}
+                  </span>
+                  <button
+                    className="friend-remove-x"
+                    onClick={() => handleRemoveFriend(friend.id)}
+                    title="Remove contact"
+                    style={{ fontSize: '12px' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Add Friend Section */}
+        <div style={{ marginTop: '8px' }}>
+          <div className="lcd-text" style={{ 
+            color: '#00ff44', 
+            marginBottom: '4px',
+            fontSize: 'clamp(10px, 2.8vw, 13px)',
+            fontWeight: 'bold'
+          }}>
+            ADD CONTACT:
+          </div>
+          <div className="add-friend-input-container">
+            <input
+              type="text"
+              className="add-friend-input"
+              placeholder="USERNAME"
+              value={newFriendUsername}
+              onChange={(e) => setNewFriendUsername(e.target.value.toLowerCase())}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddFriend()
+                }
+              }}
+              style={{ 
+                textTransform: 'uppercase',
+                fontSize: 'clamp(9px, 2.5vw, 12px)'
+              }}
+            />
+            <button
+              className="add-friend-check-btn"
+              onClick={handleAddFriend}
+              disabled={!newFriendUsername.trim()}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderRequestsScreen = () => (
+    <div className="lcd-content">
+      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
+      <div className="lcd-title">FRIEND REQUESTS</div>
+      <div className="status-line"></div>
+
+      <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', marginBottom: '6px' }}>
+        SCROLL: NAVIGATE | SIDE: ACCEPT
+      </div>
+
+      {friendRequests.length === 0 ? (
+        <div className="no-friends">NO PENDING REQUESTS</div>
+      ) : (
+        <div style={{ width: '100%' }}>
+          {friendRequests.map((request, index) => (
+            <div 
+              key={request.friendshipId || request.id} 
+              className="friend-text-line"
+              style={{
+                backgroundColor: index === selectedRequestIndex ? 'rgba(255, 170, 0, 0.2)' : 'rgba(255, 170, 0, 0.1)',
+                border: index === selectedRequestIndex ? '1px solid rgba(255, 170, 0, 0.6)' : '1px solid rgba(255, 170, 0, 0.3)',
+                borderRadius: '2px',
+                margin: '1px 0',
+                padding: '4px 8px'
+              }}
+            >
+              <span 
+                className="friend-text-name"
+                style={{
+                  color: '#ffaa00',
+                  textTransform: 'uppercase',
+                  textShadow: index === selectedRequestIndex ? '0 0 4px rgba(255, 170, 0, 0.5)' : '0 0 2px rgba(255, 170, 0, 0.3)'
+                }}
+              >
+                {index === selectedRequestIndex ? '> ' : '  '}{request.username?.toUpperCase() || 'UNKNOWN'}
               </span>
               <div style={{ display: 'flex', gap: '4px' }}>
                 <button
@@ -173,7 +510,7 @@ function MainScreen({
                     borderRadius: '2px',
                     cursor: 'pointer'
                   }}
-                  onClick={() => acceptFriendRequest(request.id)}
+                  onClick={() => acceptFriendRequest(request.friendshipId || request.id)}
                 >
                   ✓
                 </button>
@@ -187,37 +524,11 @@ function MainScreen({
                     borderRadius: '2px',
                     cursor: 'pointer'
                   }}
-                  onClick={() => rejectFriendRequest(request.id)}
+                  onClick={() => rejectFriendRequest(request.friendshipId || request.id)}
                 >
                   ✗
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Friends List */}
-      {friends.length === 0 ? (
-        <div className="no-friends">NO CONTACTS</div>
-      ) : (
-        <div className="friends-text-list">
-          {friends.map((friend, index) => (
-            <div key={friend.id} className="friend-text-line">
-              <span
-                className="friend-text-name"
-                onClick={() => callFriend(friend)}
-                style={{ textTransform: 'uppercase' }}
-              >
-                {friend.username}
-              </span>
-              <button
-                className="friend-remove-x"
-                onClick={() => handleRemoveFriend(friend.id)}
-                title="Remove contact"
-              >
-                ×
-              </button>
             </div>
           ))}
         </div>
@@ -311,6 +622,8 @@ function MainScreen({
     switch (currentScreen) {
       case 'friends':
         return renderFriendsScreen()
+      case 'requests':
+        return renderRequestsScreen()
       case 'settings':
         return renderSettingsScreen()
       default:
@@ -360,7 +673,10 @@ function MainScreen({
         <div className="controls-area">
           <button
             className={`control-btn friends-btn ${currentScreen === 'friends' ? 'active' : ''}`}
-            onClick={() => setCurrentScreen('friends')}
+            onClick={() => {
+              setCurrentScreen('friends')
+              setSelectedFriendIndex(0)
+            }}
           >
             CONTACTS
           </button>
