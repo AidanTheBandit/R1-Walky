@@ -95,7 +95,7 @@ function MainScreen({
           {friends.map((friend, index) => (
             <div
               key={friend.id}
-              className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''}`}
+              className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''} callable`}
               onClick={() => callFriend(friend)}
             >
               <div className="friend-name">{friend.username}</div>
@@ -163,7 +163,7 @@ function MainScreen({
       {/* Speaker and Controls Section - Fixed height at bottom */}
       <div className="speaker-controls">
         <div
-          className="speaker-area"
+          className={`speaker-area ${isPTTPressed ? 'ptt-active' : ''}`}
           onClick={isPTTPressed ? handlePTTEnd : handlePTTStart}
         >
           <img
