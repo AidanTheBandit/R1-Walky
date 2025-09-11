@@ -254,10 +254,35 @@ function App() {
     }
   }, [currentUser, showMainScreen])
 
-  // Monitor currentUser state changes
+  // Hardware event simulator for testing (remove in production)
   useEffect(() => {
-    addDebugLogLocal(`currentUser state changed: ${currentUser ? JSON.stringify(currentUser) : 'null'}`)
-  }, [currentUser])
+    const handleKeyDown = (event) => {
+      switch(event.key) {
+        case 'ArrowUp':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('scrollUp'))
+          break
+        case 'ArrowDown':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('scrollDown'))
+          break
+        case 'Enter':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('sideClick'))
+          break
+        case ' ':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('longPressStart'))
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('longPressEnd'))
+          }, 1000)
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const initializeApp = () => {
     addDebugLogLocal('Starting app initialization')
