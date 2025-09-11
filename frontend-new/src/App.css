@@ -144,9 +144,9 @@ html, body {
     width: calc(100% - 4px);
     height: calc(100vh - 220px);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
-    padding: 16px;
+    padding: 8px 16px 16px 16px;
     margin: 2px;
     background: #000;
     box-sizing: border-box;
@@ -241,10 +241,11 @@ html, body {
     flex-direction: column;
     gap: min(3vw, 12px);
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     margin-left: min(8vw, 32px);
     flex: 1;
     max-width: 150px;
+    padding-top: 8px;
 }
 
 /* Control Buttons - Responsive Orange Buttons */
@@ -279,16 +280,72 @@ html, body {
     background: linear-gradient(135deg, #222 0%, #111 100%);
     transform: translateY(2px);
     box-shadow: 0 0 1px rgba(0,0,0,0.5);
-}/* Friends List - Responsive */
-.friends-list {
-    display: flex;
-    flex-direction: column;
-    gap: min(3px, 0.5vh);
-    max-height: 60%;
-    overflow-y: auto;
-    width: 100%;
+}/* Add Friend Section */
+.add-friend-section {
+    margin-bottom: min(8px, 1.5vh);
 }
 
+.add-friend-form {
+    display: flex;
+    flex-direction: column;
+    gap: min(4px, 0.8vh);
+    margin-bottom: min(8px, 1.5vh);
+}
+
+.friend-input {
+    width: 100%;
+    padding: min(4px, 0.8vw) min(8px, 1.5vw);
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #222;
+    color: #ccc;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(10px, 2.5vw, 14px);
+    box-sizing: border-box;
+}
+
+.friend-input:focus {
+    outline: none;
+    border-color: #ff6b35;
+    background: #333;
+}
+
+.friend-input::placeholder {
+    color: #888;
+}
+
+.form-buttons {
+    display: flex;
+    gap: min(4px, 0.8vw);
+    justify-content: center;
+}
+
+.submit-btn {
+    background: linear-gradient(135deg, #ff6b35 0%, #cc3300 100%);
+    color: #fff;
+    border: 1px solid #cc3300;
+    flex: 1;
+}
+
+.submit-btn:hover {
+    background: linear-gradient(135deg, #ff4500 0%, #aa0000 100%);
+    border-color: #aa0000;
+}
+
+.cancel-btn {
+    background: linear-gradient(135deg, #666 0%, #444 100%);
+    color: #ccc;
+    border: 1px solid #555;
+    flex: 1;
+}
+
+.cancel-btn:hover {
+    background: linear-gradient(135deg, #777 0%, #555 100%);
+    color: #fff;
+    border-color: #666;
+}
+
+/* Updated Friend Item with Remove Button */
 .friend-item {
     display: flex;
     justify-content: space-between;
@@ -299,7 +356,37 @@ html, body {
     font-size: clamp(10px, 2.5vw, 14px);
     background: rgba(0, 0, 0, 0.05);
     border-radius: min(4px, 0.8vw);
+}
+
+.friend-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
     cursor: pointer;
+}
+
+.remove-friend-btn {
+    background: linear-gradient(135deg, #662222 0%, #441111 100%);
+    color: #ccc;
+    border: 1px solid #662222;
+    border-radius: 50%;
+    width: min(20px, 4vw);
+    height: min(20px, 4vw);
+    font-size: min(12px, 2.5vw);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: min(4px, 0.8vw);
+    transition: all 0.2s ease;
+}
+
+.remove-friend-btn:hover {
+    background: linear-gradient(135deg, #773333 0%, #552222 100%);
+    color: #fff;
+    border-color: #773333;
+    transform: scale(1.1);
 }
 
 .friend-item.callable {
@@ -313,24 +400,10 @@ html, body {
     animation: pulse 1s infinite;
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-
 .friend-item.incoming-call {
     background: rgba(0, 255, 0, 0.2);
     border-color: #00ff00;
     animation: ring 0.5s infinite;
-}
-
-@keyframes ring {
-    0% { transform: scale(1); }
-    25% { transform: scale(1.05); }
-    50% { transform: scale(1); }
-    75% { transform: scale(1.05); }
-    100% { transform: scale(1); }
 }
 
 .friend-item.selected {
