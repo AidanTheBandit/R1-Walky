@@ -85,7 +85,6 @@ function MainScreen({
   const renderFriendsScreen = () => (
     <div className="lcd-content">
       <div className="lcd-text lcd-title">
-        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
         FRIENDS
       </div>
       {friends.length === 0 ? (
@@ -111,7 +110,6 @@ function MainScreen({
   const renderChannelsScreen = () => (
     <div className="lcd-content">
       <div className="lcd-text lcd-title">
-        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
         CHANNELS
       </div>
       <LocationChannels
@@ -127,7 +125,6 @@ function MainScreen({
   const renderSettingsScreen = () => (
     <div className="lcd-content">
       <div className="lcd-text lcd-title">
-        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
         SETTINGS
       </div>
       <div className="settings-list">

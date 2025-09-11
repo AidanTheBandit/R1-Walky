@@ -19,24 +19,24 @@ body {
     justify-content: center;
 }
 
-/* R1 Device Container - Fixed Size */
+/* R1 Device Container - Full Screen */
 .r1-device {
-    width: 240px;
-    height: 282px;
+    width: 100vw;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     background: #000;
     position: relative;
     box-sizing: border-box;
-    border: 3px solid #ff6b35;
-    border-radius: 8px;
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
-/* LCD Screen - Fixed Size */
+/* LCD Screen - Full Width */
 .lcd-screen {
     width: calc(100% - 16px);
-    height: 140px;
+    height: 60vh;
     background: #000;
     border: 2px solid #333;
     border-radius: 4px;
@@ -571,11 +571,78 @@ body {
 }
 
 /* Speaker Section - Responsive */
-.speaker-section {
-    flex: 0 0 clamp(50px, 25%, 60px);
+/* Speaker and Controls Section */
+.speaker-controls {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: #111;
+    border-top: 1px solid #333;
+    margin-top: 8px;
+    flex: 1;
+    box-sizing: border-box;
+}
+
+.speaker-area {
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
+    cursor: pointer;
+}
+
+.speaker-svg {
+    width: 80px;
+    height: 80px;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.speaker-svg:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.controls-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Control Buttons - Larger for Full Screen */
+.control-btn {
+    width: 80px;
+    height: 50px;
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+    border: 2px solid #cc3300;
+    border-radius: 6px;
+    color: #000;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 3px 6px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+    transition: all 0.1s ease;
+    font-family: 'Courier New', monospace;
+}
+
+.control-btn:hover {
+    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
+    transform: translateY(2px);
+    box-shadow:
+        0 2px 4px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.control-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
 .speaker-btn {
