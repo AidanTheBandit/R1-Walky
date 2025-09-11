@@ -73,12 +73,31 @@ export class AudioHandlerClass {
         this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
         addDebugLog('Created script processor');
 
-        this.scriptProcessor.onaudioprocess = (event) => {
-          if (!this.currentCall || !this.isRecording) return;
+      this.scriptProcessor.onaudioprocess = (event) => {
+        if (!this.currentCall || !this.isRecording) {
+          // Optionally log why we're not processing
+          if (!this.currentCall) {
+            // Don't spam logs, just once per session
+            if (!this._loggedNoCall) {
+              addDebugLog('Audio processing skipped: no current call');
+              this._loggedNoCall = true;
+            }
+          }
+          return;
+        }
 
-          const inputBuffer = event.inputBuffer;
-          const inputData = inputBuffer.getChannelData(0);
+        const inputBuffer = event.inputBuffer;
+        const inputData = inputBuffer.getChannelData(0);
 
+        // Calculate RMS to detect if there's actual audio
+        let rms = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          rms += inputData[i] * inputData[i];
+        }
+        rms = Math.sqrt(rms / inputData.length);
+
+        // Only send if there's meaningful audio (above noise floor)
+        if (rms > 0.001) {
           // Convert Float32Array to Int16Array for transmission
           const pcmData = new Int16Array(inputData.length);
           const len = inputData.length;
@@ -88,7 +107,15 @@ export class AudioHandlerClass {
 
           // Send PCM data to server
           this.sendAudioData(pcmData);
-        };
+          addDebugLog(`Processing audio: RMS=${rms.toFixed(4)}, samples=${pcmData.length}`);
+        } else {
+          // Log silence occasionally
+          this._silenceCount = (this._silenceCount || 0) + 1;
+          if (this._silenceCount % 100 === 0) {
+            addDebugLog(`Audio processing active but silent (RMS=${rms.toFixed(6)})`);
+          }
+        }
+      };
 
         // Connect nodes
         this.mediaStreamSource.connect(this.scriptProcessor);
@@ -158,7 +185,11 @@ export class AudioHandlerClass {
         targetId: this.currentCall.targetId
       });
 
-      addDebugLog(`Sent ${pcmData.length} PCM samples (${base64Data.length} bytes) to ${this.currentCall.targetId}`);
+      // Increment send counter for debugging
+      this._sendCount = (this._sendCount || 0) + 1;
+      if (this._sendCount % 10 === 0) {
+        addDebugLog(`Sent ${this._sendCount} audio packets. Latest: ${pcmData.length} samples (${base64Data.length} bytes) to ${this.currentCall.targetId}`);
+      }
     } catch (error) {
       addDebugLog(`Error sending audio data: ${error.message}`, 'error');
     }
@@ -190,10 +221,15 @@ export class AudioHandlerClass {
       // Add to audio queue
       this.audioQueue.push(pcmData);
 
-      addDebugLog(`Added PCM data to queue (${pcmData.length} samples, queue length: ${this.audioQueue.length})`);
+      // Increment receive counter for debugging
+      this._receiveCount = (this._receiveCount || 0) + 1;
+      if (this._receiveCount % 5 === 0) {
+        addDebugLog(`Received ${this._receiveCount} audio packets. Latest: ${pcmData.length} samples, queue length: ${this.audioQueue.length}`);
+      }
 
       // Start playing if not already playing
       if (!this.isPlaying) {
+        addDebugLog('Starting audio playback...');
         this.startPlayback();
       }
 

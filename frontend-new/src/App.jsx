@@ -229,9 +229,9 @@ function App() {
       return
     }
 
+    addDebugLogLocal(`PTT activated for call: ${currentCall.id}`)
     setIsPTTPressed(true)
     setCallStatus('Talking...')
-    addDebugLogLocal('PTT activated - enabling microphone')
 
     // Enable all audio tracks
     const audioTracks = localStreamRef.current.getAudioTracks()
@@ -240,15 +240,30 @@ function App() {
       addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
     })
 
-    // Start audio recording in AudioHandler (not just flag, actual recording)
+    // Ensure AudioHandler is properly set up
     if (AudioHandler.current) {
-      AudioHandler.current.isRecording = true
-      // Ensure the audio recording is actively processing audio
+      // Make sure current call is set
+      AudioHandler.current.setCurrentCall(currentCall)
+      addDebugLogLocal(`AudioHandler current call set to: ${currentCall.id}`)
+      
+      // Ensure audio recording infrastructure is ready
       if (!AudioHandler.current.scriptProcessor && localStreamRef.current) {
-        addDebugLogLocal('Re-initializing audio recording for PTT')
-        AudioHandler.current.startRecording(localStreamRef.current)
+        addDebugLogLocal('AudioHandler not ready, initializing recording...')
+        AudioHandler.current.startRecording(localStreamRef.current).then(success => {
+          if (success) {
+            AudioHandler.current.isRecording = true
+            addDebugLogLocal('Audio recording infrastructure ready and recording enabled')
+          } else {
+            addDebugLogLocal('Failed to initialize audio recording infrastructure', 'error')
+          }
+        })
+      } else {
+        // Recording infrastructure exists, just enable recording
+        AudioHandler.current.isRecording = true
+        addDebugLogLocal('Audio recording enabled (infrastructure already ready)')
       }
-      addDebugLogLocal('Audio recording enabled and active')
+    } else {
+      addDebugLogLocal('AudioHandler not available!', 'error')
     }
 
     // Send audio stream started event
