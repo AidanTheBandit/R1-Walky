@@ -129,18 +129,6 @@ function MainScreen({
       </div>
       <div className="settings-list">
         <div className="setting-item">
-          <span>Volume</span>
-          <input
-            type="range"
-            min="0"
-            max="3"
-            step="0.1"
-            value={volumeLevel}
-            onChange={updateVolume}
-            className="volume-slider"
-          />
-        </div>
-        <div className="setting-item">
           <span>Debug</span>
           <span>{friends.some(f => f.username.toLowerCase() === 'debugger') ? 'ON' : 'OFF'}</span>
         </div>
@@ -185,32 +173,21 @@ function MainScreen({
             className="control-btn friends-btn"
             onClick={() => setCurrentScreen('friends')}
           >
-            👥
+            FRIENDS
           </button>
           <button
             className="control-btn channels-btn"
             onClick={() => setCurrentScreen('channels')}
           >
-            📡
+            CHANNELS
           </button>
           <button
             className="control-btn settings-btn"
             onClick={() => setCurrentScreen('settings')}
           >
-            ⚙
+            SETTINGS
           </button>
         </div>
-      </div>
-
-      {/* PTT Button */}
-      <div className="ptt-section">
-        <PTTButton
-          isPTTPressed={isPTTPressed}
-          handlePTTStart={handlePTTStart}
-          handlePTTEnd={handlePTTEnd}
-          volumeLevel={volumeLevel}
-          updateVolume={updateVolume}
-        />
       </div>
 
       <GroupCallOverlay
