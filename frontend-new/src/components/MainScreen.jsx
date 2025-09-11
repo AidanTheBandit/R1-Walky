@@ -76,19 +76,34 @@ function MainScreen({
     <div className="lcd-content">
       {currentCall ? (
         <div>
-          <div className="lcd-text lcd-title">R1-WALKY</div>
-          <div className="lcd-text">Connected to "{currentCall.targetUsername}"</div>
-          <div className="call-buttons">
+          <div className="lcd-title">CONNECTED</div>
+          <div className="status-line"></div>
+          <div className="lcd-text">TO: {currentCall.targetUsername.toUpperCase()}</div>
+          <div className="lcd-text" style={{ color: isPTTPressed ? '#ff6b35' : '#00ff44', textShadow: isPTTPressed ? '0 0 4px rgba(255, 107, 53, 0.5)' : '0 0 2px rgba(0, 255, 68, 0.3)' }}>
+            {isPTTPressed ? 'TRANSMITTING...' : 'PRESS PTT TO TALK'}
+          </div>
+          <div className="call-buttons" style={{ marginTop: '12px' }}>
             <button className="call-end-btn" onClick={endCall}>
-              📞 END CALL
+              END CALL
             </button>
           </div>
         </div>
       ) : (
         <div>
-          <div className="lcd-text lcd-title">R1-WALKY</div>
-          <div className="lcd-text">{currentUser?.username || 'User'}</div>
-          <div className="lcd-text">{connectionStatus}</div>
+          <div className="lcd-title">R1-WALKY</div>
+          <div className="status-line"></div>
+          <div className="lcd-text">CALLSIGN: {currentUser?.username?.toUpperCase() || 'UNKNOWN'}</div>
+          <div className="lcd-text" style={{ 
+            color: connectionStatus === 'Connected' ? '#00ff44' : '#ff4444',
+            textShadow: connectionStatus === 'Connected' ? '0 0 2px rgba(0, 255, 68, 0.5)' : '0 0 2px rgba(255, 68, 68, 0.5)'
+          }}>
+            STATUS: {connectionStatus.toUpperCase()}
+          </div>
+          {friendRequests.length > 0 && (
+            <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)' }}>
+              {friendRequests.length} PENDING REQUEST{friendRequests.length > 1 ? 'S' : ''}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -97,36 +112,82 @@ function MainScreen({
   const renderFriendsScreen = () => (
     <div className="lcd-content">
       <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
-      <div className="lcd-text lcd-title">
-        FRIENDS
-      </div>
+      <div className="lcd-title">CONTACTS</div>
+      <div className="status-line"></div>
 
       {/* Add Friend Input */}
       <div className="add-friend-input-container">
         <input
           type="text"
           className="add-friend-input"
-          placeholder="add friend"
+          placeholder="add contact"
           value={newFriendUsername}
-          onChange={(e) => setNewFriendUsername(e.target.value)}
+          onChange={(e) => setNewFriendUsername(e.target.value.toLowerCase())}
           onKeyPress={(e) => {
             if (e.key === 'Enter') {
               handleAddFriend()
             }
           }}
+          style={{ textTransform: 'uppercase' }}
         />
         <button
           className="add-friend-check-btn"
           onClick={handleAddFriend}
           disabled={!newFriendUsername.trim()}
         >
-          ✓
+          +
         </button>
       </div>
 
+      {/* Friend Requests */}
+      {friendRequests.length > 0 && (
+        <div style={{ marginBottom: '8px' }}>
+          <div className="lcd-text" style={{ color: '#ffaa00', marginBottom: '4px' }}>
+            PENDING REQUESTS:
+          </div>
+          {friendRequests.map((request) => (
+            <div key={request.id} className="friend-text-line" style={{ background: 'rgba(255, 170, 0, 0.1)' }}>
+              <span className="friend-text-name">
+                {request.requesterUsername?.toUpperCase() || 'UNKNOWN'}
+              </span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  style={{
+                    background: 'rgba(0, 255, 68, 0.2)',
+                    border: '1px solid #00ff44',
+                    color: '#00ff44',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '2px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => acceptFriendRequest(request.id)}
+                >
+                  ✓
+                </button>
+                <button
+                  style={{
+                    background: 'rgba(255, 68, 68, 0.2)',
+                    border: '1px solid #ff4444',
+                    color: '#ff4444',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '2px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => rejectFriendRequest(request.id)}
+                >
+                  ✗
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Friends List */}
       {friends.length === 0 ? (
-        <div className="no-friends">no friends</div>
+        <div className="no-friends">NO CONTACTS</div>
       ) : (
         <div className="friends-text-list">
           {friends.map((friend, index) => (
@@ -134,13 +195,14 @@ function MainScreen({
               <span
                 className="friend-text-name"
                 onClick={() => callFriend(friend)}
+                style={{ textTransform: 'uppercase' }}
               >
                 {friend.username}
               </span>
               <button
                 className="friend-remove-x"
                 onClick={() => handleRemoveFriend(friend.id)}
-                title="Remove friend"
+                title="Remove contact"
               >
                 ×
               </button>
@@ -170,18 +232,20 @@ function MainScreen({
   const renderSettingsScreen = () => (
     <div className="lcd-content">
       <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
-      <div className="lcd-text lcd-title">
-        SETTINGS
-      </div>
+      <div className="lcd-title">SETTINGS</div>
+      <div className="status-line"></div>
       <div className="settings-list">
         <div className="setting-item">
-          <span>Volume: {Math.round(volumeLevel * 100)}%</span>
+          <span>VOLUME: {Math.round(volumeLevel * 100)}%</span>
         </div>
         <div className="setting-item">
-          <span>Connection: {connectionStatus}</span>
+          <span>STATUS: {connectionStatus.toUpperCase()}</span>
         </div>
         <div className="setting-item">
-          <span>Username: {currentUser?.username || 'Not set'}</span>
+          <span>CALLSIGN: {currentUser?.username?.toUpperCase() || 'NOT SET'}</span>
+        </div>
+        <div className="setting-item">
+          <span>CONTACTS: {friends.length}</span>
         </div>
       </div>
     </div>
@@ -189,19 +253,18 @@ function MainScreen({
 
   const renderIncomingCallScreen = () => (
     <div className="lcd-content">
-      <div className="lcd-text lcd-title">
-        INCOMING CALL
-      </div>
+      <div className="lcd-title">INCOMING CALL</div>
+      <div className="status-line"></div>
       <div className="caller-info">
-        <div className="caller-name">{incomingCaller}</div>
-        <div className="call-status">is calling...</div>
+        <div className="caller-name">{incomingCaller?.toUpperCase()}</div>
+        <div className="call-status">IS CALLING...</div>
       </div>
       <div className="call-buttons">
         <button className="call-accept-btn" onClick={acceptCall}>
-          📞 ACCEPT
+          ACCEPT
         </button>
         <button className="call-reject-btn" onClick={rejectCall}>
-          📞 REJECT
+          REJECT
         </button>
       </div>
     </div>
@@ -209,16 +272,15 @@ function MainScreen({
 
   const renderCallingScreen = () => (
     <div className="lcd-content">
-      <div className="lcd-text lcd-title">
-        CALLING...
-      </div>
+      <div className="lcd-title">CALLING...</div>
+      <div className="status-line"></div>
       <div className="calling-info">
-        <div className="target-name">{callingTarget}</div>
-        <div className="call-status">{callStatus}</div>
+        <div className="target-name">{callingTarget?.toUpperCase()}</div>
+        <div className="call-status">{callStatus?.toUpperCase() || 'CONNECTING...'}</div>
       </div>
       <div className="call-buttons">
         <button className="call-cancel-btn" onClick={cancelCall}>
-          📞 CANCEL
+          CANCEL
         </button>
       </div>
     </div>
@@ -265,16 +327,16 @@ function MainScreen({
         </div>
         <div className="controls-area">
           <button
-            className="control-btn friends-btn"
+            className={`control-btn friends-btn ${currentScreen === 'friends' ? 'active' : ''}`}
             onClick={() => setCurrentScreen('friends')}
           >
-            FRIENDS
+            CONTACTS
           </button>
           <button
-            className="control-btn settings-btn"
+            className={`control-btn settings-btn ${currentScreen === 'settings' ? 'active' : ''}`}
             onClick={() => setCurrentScreen('settings')}
           >
-            SETTINGS
+            CONFIG
           </button>
         </div>
       </div>
