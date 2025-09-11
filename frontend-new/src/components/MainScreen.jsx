@@ -151,12 +151,12 @@ function MainScreen({
 
   return (
     <div className="r1-device">
-      {/* LCD Screen */}
+      {/* LCD Screen - Takes up most of the space */}
       <div className="lcd-screen">
         {renderCurrentScreen()}
       </div>
 
-      {/* Speaker and Controls Section */}
+      {/* Speaker and Controls Section - Fixed height at bottom */}
       <div className="speaker-controls">
         <div
           className="speaker-area"
