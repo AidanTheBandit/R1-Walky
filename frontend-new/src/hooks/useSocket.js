@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { addDebugLog } from '../utils/api.js';
 
-export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFriendRequests, loadFriends, setCallStatus, setCurrentCall, setShowIncomingCall, setIncomingCaller, setIncomingCallData, endCall, AudioHandler) => {
+export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFriendRequests, loadFriends, setCallStatus, setCurrentCall, setShowIncomingCall, setIncomingCaller, setIncomingCallData, endCall, AudioHandler, setShowCalling, setCallingTarget) => {
   const socketRef = useRef(null);
 
   const connectSocket = (userData = null) => {
@@ -77,7 +77,8 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
 
       // Call events
       socketRef.current.on('incoming-call', (data) => {
-        addDebugLog(`Incoming call from: ${data.callerUsername}`);
+        addDebugLog(`Incoming call received from: ${data.callerUsername} (ID: ${data.caller})`);
+        console.log('Incoming call data:', data);
         setIncomingCaller(data.callerUsername);
         setIncomingCallData(data);
         setShowIncomingCall(true);
@@ -94,6 +95,10 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
       socketRef.current.on('call-answered', async (data) => {
         addDebugLog('Call answered by recipient');
         setCallStatus(`Connected to ${data.answererUsername}`);
+
+        // Hide calling overlay
+        setShowCalling(false);
+        setCallingTarget('');
 
         // For server-mediated calls, just update status
         if (setCurrentCall) {
@@ -123,6 +128,27 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
       socketRef.current.on('audio-stream-stopped', (data) => {
         addDebugLog(`${data.fromUsername} stopped speaking`);
         setCallStatus(`Connected to user`);
+      });
+
+      // Group call events
+      socketRef.current.on('group-call-started', (data) => {
+        addDebugLog(`Group call started in channel ${data.channelId} by ${data.startedByUsername}`);
+        // This will be handled by the LocationChannels component
+      });
+
+      socketRef.current.on('group-call-joined', (data) => {
+        addDebugLog(`Joined group call ${data.callId} in channel ${data.channelId}`);
+        // This will be handled by the GroupCallOverlay component
+      });
+
+      socketRef.current.on('user-joined-channel', (data) => {
+        addDebugLog(`User ${data.username} joined channel ${data.channelId}`);
+        // This will be handled by the LocationChannels component
+      });
+
+      socketRef.current.on('user-left-channel', (data) => {
+        addDebugLog(`User ${data.username} left channel ${data.channelId}`);
+        // This will be handled by the LocationChannels component
       });
 
       // User status events

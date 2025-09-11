@@ -10,11 +10,13 @@ function PTTButton({ isPTTPressed, handlePTTStart, handlePTTEnd, volumeLevel, up
         onTouchStart={handlePTTStart}
         onTouchEnd={handlePTTEnd}
       >
-        <div>HOLD</div>
-        <div>TO TALK</div>
+        <div className="ptt-icon">🎙️</div>
+        <div className="ptt-text">
+          {isPTTPressed ? 'TX' : 'PTT'}
+        </div>
       </button>
       <div className="volume-control">
-        <label htmlFor="volume-slider">🔊 Volume:</label>
+        <label htmlFor="volume-slider">🔊</label>
         <input
           type="range"
           id="volume-slider"

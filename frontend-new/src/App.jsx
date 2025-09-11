@@ -3,7 +3,6 @@ import { io } from 'socket.io-client'
 import './App.css'
 import LoginScreen from './components/LoginScreen'
 import MainScreen from './components/MainScreen'
-import IncomingCallOverlay from './components/IncomingCallOverlay'
 import DebugOverlay from './components/DebugOverlay'
 import { makeXMLHttpRequest, addDebugLog } from './utils/api'
 import { AudioHandlerClass } from './utils/AudioHandler'
@@ -34,7 +33,11 @@ function App() {
   const [incomingCallData, setIncomingCallData] = useState(null)
   const [peerConnection, setPeerConnection] = useState(null)
   const [debugLogs, setDebugLogs] = useState([])
-  const [showDebug, setShowDebug] = useState(false) // Only show when debugger friend exists
+  const [showDebug, setShowDebug] = useState(false)
+  const [showGroupCall, setShowGroupCall] = useState(false)
+  const [groupCallData, setGroupCallData] = useState(null)
+  const [showCalling, setShowCalling] = useState(false)
+  const [callingTarget, setCallingTarget] = useState('')
 
   const ringtoneRef = useRef(null)
   const remoteAudioRef = useRef(null)
@@ -42,12 +45,26 @@ function App() {
   const peerConnectionRef = useRef(null)
   const AudioHandler = useRef(null)
 
-  // Make refs available globally for audio handler
-  window.socketRef = useRef(null)
-  window.ringtoneRef = ringtoneRef
-  window.volumeLevel = volumeLevel
+  // Initialize AudioHandler
+  useEffect(() => {
+    if (!AudioHandler.current) {
+      AudioHandler.current = new AudioHandlerClass()
+      addDebugLogLocal('AudioHandler initialized successfully')
+    } else {
+      addDebugLogLocal('AudioHandler already initialized')
+    }
 
-  // Define functions that are used by the useSocket hook before the hook call
+    // Initialize audio context early
+    if (AudioHandler.current) {
+      AudioHandler.current.initAudioContext().then(success => {
+        if (success) {
+          addDebugLogLocal('Audio context initialized early')
+        } else {
+          addDebugLogLocal('Failed to initialize audio context early', 'error')
+        }
+      })
+    }
+  }, [])
   const loadFriends = async (userData = null) => {
     const user = userData || currentUser
     addDebugLogLocal(`loadFriends called, user: ${user ? JSON.stringify(user) : 'null'}`)
@@ -170,6 +187,8 @@ function App() {
     setCurrentCall(null)
     setCallStatus('')
     setIsPTTPressed(false)
+    setShowCalling(false)
+    setCallingTarget('')
     addDebugLogLocal('Call ended locally')
   }
 
@@ -185,18 +204,91 @@ function App() {
     setIncomingCaller,
     setIncomingCallData,
     endCall,
-    AudioHandler
+    AudioHandler,
+    setShowCalling,
+    setCallingTarget
   )
 
-  // Update global refs
+  // Make refs available globally for audio handler (after socket is initialized)
   useEffect(() => {
     window.socketRef = socketRef
+    window.ringtoneRef = ringtoneRef
+    window.volumeLevel = volumeLevel
+    addDebugLogLocal('Global refs initialized')
   }, [socketRef])
 
   // Debug logging function
   const addDebugLogLocal = (message, type = 'info') => {
     const logEntry = addDebugLog(message, type)
     setDebugLogs(prev => [...prev.slice(-9), logEntry]) // Keep last 10 logs
+  }
+
+  const handlePTTStart = () => {
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLogLocal('PTT start ignored: no active call or media stream', 'warn')
+      return
+    }
+
+    setIsPTTPressed(true)
+    setCallStatus('Talking...')
+    addDebugLogLocal('PTT activated - enabling microphone')
+
+    // Enable all audio tracks
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    audioTracks.forEach(track => {
+      track.enabled = true
+      addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
+    })
+
+    // Start recording in AudioHandler
+    if (AudioHandler.current) {
+      AudioHandler.current.isRecording = true
+      addDebugLogLocal('Audio recording enabled')
+    }
+
+    // Send audio stream started event
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('start-audio-stream', {
+        callId: currentCall.id
+      })
+      addDebugLogLocal('Sent audio stream started event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT start event', 'warn')
+    }
+  }
+
+  const handlePTTEnd = () => {
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLogLocal('PTT end ignored: no active call or media stream', 'warn')
+      return
+    }
+
+    setIsPTTPressed(false)
+    setCallStatus(`Connected to ${currentCall.targetUsername}`)
+    addDebugLogLocal('PTT released - disabling microphone')
+
+    // Disable all audio tracks
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    audioTracks.forEach(track => {
+      track.enabled = false
+      addDebugLogLocal(`Disabled audio track: ${track.label} (${track.readyState})`)
+    })
+
+    // Stop recording in AudioHandler
+    if (AudioHandler.current) {
+      AudioHandler.current.isRecording = false
+      addDebugLogLocal('Audio recording disabled')
+    }
+
+    // Send audio stream stopped event
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('stop-audio-stream', {
+        callId: currentCall.id
+      })
+      addDebugLogLocal('Sent audio stream stopped event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT end event', 'warn')
+    }
   }
 
   // Test backend connectivity
@@ -252,10 +344,35 @@ function App() {
     }
   }, [currentUser, showMainScreen])
 
-  // Monitor currentUser state changes
+  // Hardware event simulator for testing (remove in production)
   useEffect(() => {
-    addDebugLogLocal(`currentUser state changed: ${currentUser ? JSON.stringify(currentUser) : 'null'}`)
-  }, [currentUser])
+    const handleKeyDown = (event) => {
+      switch(event.key) {
+        case 'ArrowUp':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('scrollUp'))
+          break
+        case 'ArrowDown':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('scrollDown'))
+          break
+        case 'Enter':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('sideClick'))
+          break
+        case ' ':
+          event.preventDefault()
+          window.dispatchEvent(new CustomEvent('longPressStart'))
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('longPressEnd'))
+          }, 1000)
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const initializeApp = () => {
     addDebugLogLocal('Starting app initialization')
@@ -449,6 +566,8 @@ function App() {
     if (!currentUser || currentCall) return
 
     try {
+      setCallingTarget(friend.username)
+      setShowCalling(true)
       setCallStatus(`Calling ${friend.username}...`)
       addDebugLogLocal(`Initiating server-mediated call to ${friend.username}`)
 
@@ -499,10 +618,25 @@ function App() {
         addDebugLogLocal(`Server-mediated call initiated with ID: ${callData.callId}`)
 
         // Set up audio processing for server relay with the new call data
-        AudioHandler.current.setCurrentCall(newCall)
-        const started = await AudioHandler.current.startRecording(localStreamRef.current)
-        if (!started) {
-          addDebugLogLocal('Failed to start audio recording', 'error')
+        if (AudioHandler.current) {
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully')
+          }
+        } else {
+          addDebugLogLocal('AudioHandler not initialized - initializing now', 'error')
+          // Initialize AudioHandler if not already done
+          AudioHandler.current = new AudioHandlerClass()
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording after initialization', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully after initialization')
+          }
         }
       } else {
         throw new Error('Failed to initiate call')
@@ -510,6 +644,8 @@ function App() {
     } catch (error) {
       addDebugLogLocal(`Call error: ${error.message}`, 'error')
       setCallStatus(`Call failed: ${error.message}`)
+      setShowCalling(false)
+      setCallingTarget('')
       endCall()
     }
   }
@@ -577,10 +713,25 @@ function App() {
         addDebugLogLocal('Server-mediated call accepted and connected')
 
         // Set up audio processing for server relay with the new call data
-        AudioHandler.current.setCurrentCall(newCall)
-        const started = await AudioHandler.current.startRecording(localStreamRef.current)
-        if (!started) {
-          addDebugLogLocal('Failed to start audio recording', 'error')
+        if (AudioHandler.current) {
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully')
+          }
+        } else {
+          addDebugLogLocal('AudioHandler not initialized - initializing now', 'error')
+          // Initialize AudioHandler if not already done
+          AudioHandler.current = new AudioHandlerClass()
+          AudioHandler.current.setCurrentCall(newCall)
+          const started = await AudioHandler.current.startRecording(localStreamRef.current)
+          if (!started) {
+            addDebugLogLocal('Failed to start audio recording after initialization', 'error')
+          } else {
+            addDebugLogLocal('Audio recording started successfully after initialization')
+          }
         }
       } else {
         throw new Error('Failed to send answer')
@@ -613,8 +764,9 @@ function App() {
           },
           body: JSON.stringify({ callId: incomingCallData.callId })
         })
+        addDebugLogLocal('Sent reject call request to server')
       } catch (error) {
-        addDebugLogLocal(`Failed to reject call: ${error.message}`, 'error')
+        addDebugLogLocal(`Failed to reject call on server: ${error.message}`, 'error')
       }
     }
 
@@ -622,70 +774,63 @@ function App() {
     setIncomingCaller('')
     setIncomingCallData(null)
     setCallStatus('Call rejected')
+    addDebugLogLocal('Call rejected')
   }
 
-  const handlePTTStart = () => {
-    if (!currentCall || !localStreamRef.current) {
-      addDebugLogLocal('PTT start ignored: no active call or media stream', 'warn')
-      return
-    }
-
-    setIsPTTPressed(true)
-    setCallStatus('Talking...')
-    addDebugLogLocal('PTT activated - enabling microphone')
-
-    // Enable all audio tracks
-    const audioTracks = localStreamRef.current.getAudioTracks()
-    audioTracks.forEach(track => {
-      track.enabled = true
-      addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
-    })
-
-    // Start recording in AudioHandler
-    if (AudioHandler.current) {
-      AudioHandler.current.isRecording = true
-      addDebugLogLocal('Audio recording enabled')
-    }
-
-    // Send audio stream started event
-    if (socketRef.current) {
-      socketRef.current.emit('start-audio-stream', {
-        callId: currentCall.id
+  const cancelCall = async () => {
+    addDebugLogLocal('Cancelling outgoing call')
+    
+    // Stop local media
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop()
+        addDebugLogLocal(`Stopped ${track.kind} track`)
       })
-      addDebugLogLocal('Sent audio stream started event')
-    }
-  }
-
-  const handlePTTEnd = () => {
-    if (!currentCall || !localStreamRef.current) {
-      addDebugLogLocal('PTT end ignored: no active call or media stream', 'warn')
-      return
+      localStreamRef.current = null
     }
 
+    // Clean up audio processing
+    if (AudioHandler.current) {
+      AudioHandler.current.cleanup()
+    }
+
+    // Send end call event if there's an active call
+    if (currentCall) {
+      try {
+        await makeXMLHttpRequest('/api/calls/end', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': currentUser.id
+          },
+          body: JSON.stringify({ callId: currentCall.id })
+        })
+        addDebugLogLocal('Sent cancel call request to server')
+      } catch (error) {
+        addDebugLogLocal(`Failed to cancel call on server: ${error.message}`, 'error')
+      }
+    }
+
+    setCurrentCall(null)
+    setCallStatus('')
     setIsPTTPressed(false)
-    setCallStatus(`Connected to ${currentCall.targetUsername}`)
-    addDebugLogLocal('PTT released - disabling microphone')
+    setShowCalling(false)
+    setCallingTarget('')
+    addDebugLogLocal('Call cancelled')
+  }
 
-    // Disable all audio tracks
-    const audioTracks = localStreamRef.current.getAudioTracks()
-    audioTracks.forEach(track => {
-      track.enabled = false
-      addDebugLogLocal(`Disabled audio track: ${track.label} (${track.readyState})`)
-    })
+  const handleGroupCallStarted = (data) => {
+    addDebugLogLocal(`Group call started: ${JSON.stringify(data)}`)
+    setGroupCallData(data)
+    setShowGroupCall(true)
+    setCallStatus(`Group call active in ${data.channelName || 'channel'}`)
+  }
 
-    // Stop recording in AudioHandler
-    if (AudioHandler.current) {
-      AudioHandler.current.isRecording = false
-      addDebugLogLocal('Audio recording disabled')
-    }
-
-    // Send audio stream stopped event
-    if (socketRef.current) {
-      socketRef.current.emit('stop-audio-stream', {
-        callId: currentCall.id
-      })
-      addDebugLogLocal('Sent audio stream stopped event')
-    }
+  const handleGroupCallClosed = () => {
+    addDebugLogLocal('Group call closed')
+    setShowGroupCall(false)
+    setGroupCallData(null)
+    setCallStatus('')
   }
 
   const addFriend = async () => {
@@ -816,13 +961,6 @@ function App() {
       <div className="app">
         <LoginScreen login={login} loginStatus={loginStatus} />
 
-        <IncomingCallOverlay
-          showIncomingCall={showIncomingCall}
-          incomingCaller={incomingCaller}
-          acceptCall={acceptCall}
-          rejectCall={rejectCall}
-        />
-
         {/* Debug Overlay */}
         {showDebug && (
           <div className="debug-overlay">
@@ -865,19 +1003,23 @@ function App() {
         currentCall={currentCall}
         endCall={endCall}
         callStatus={callStatus}
+        showGroupCall={showGroupCall}
+        groupCallData={groupCallData}
+        onGroupCallStarted={handleGroupCallStarted}
+        onGroupCallClosed={handleGroupCallClosed}
+        showIncomingCall={showIncomingCall}
+        incomingCaller={incomingCaller}
+        acceptCall={acceptCall}
+        rejectCall={rejectCall}
+        showCalling={showCalling}
+        callingTarget={callingTarget}
+        cancelCall={cancelCall}
       />
 
       <audio ref={ringtoneRef} loop>
         <source src="/ringer.mp3" type="audio/mpeg" />
       </audio>
       <audio ref={remoteAudioRef} autoplay></audio>
-
-      <IncomingCallOverlay
-        showIncomingCall={showIncomingCall}
-        incomingCaller={incomingCaller}
-        acceptCall={acceptCall}
-        rejectCall={rejectCall}
-      />
 
       {/* Debug Overlay */}
       {showDebug && (

@@ -3,20 +3,22 @@ import { addDebugLog } from './api.js';
 export class AudioHandlerClass {
   constructor() {
     this.audioContext = null;
-    this.scriptProcessor = null;
+    this.mediaStreamSource = null;
+    this.audioWorkletNode = null;
     this.audioQueue = [];
     this.isPlaying = false;
-    this.sampleRate = 16000;
+    this.sampleRate = 44100; // Match audio context sample rate
     this.channels = 1;
     this.currentCall = null;
     this.isRecording = false;
+    this.workletLoaded = false;
   }
 
   // Initialize audio context
   async initAudioContext() {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: this.sampleRate
+        sampleRate: 44100 // Match the getUserMedia sample rate
       });
 
       if (this.audioContext.state === 'suspended') {
@@ -53,10 +55,10 @@ export class AudioHandlerClass {
       addDebugLog('Starting audio recording...');
 
       // Create media stream source
-      const source = this.audioContext.createMediaStreamSource(localStream);
+      this.mediaStreamSource = this.audioContext.createMediaStreamSource(localStream);
 
-      // Create script processor for raw audio data
-      this.scriptProcessor = this.audioContext.createScriptProcessor(1024, 1, 1);
+      // Create script processor for raw audio data (still works despite deprecation)
+      this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.scriptProcessor.onaudioprocess = (event) => {
         if (!this.currentCall || !this.isRecording) return;
@@ -76,7 +78,7 @@ export class AudioHandlerClass {
       };
 
       // Connect nodes
-      source.connect(this.scriptProcessor);
+      this.mediaStreamSource.connect(this.scriptProcessor);
       this.scriptProcessor.connect(this.audioContext.destination);
 
       this.isRecording = true;
@@ -95,40 +97,69 @@ export class AudioHandlerClass {
       this.scriptProcessor.disconnect();
       this.scriptProcessor = null;
     }
+    if (this.mediaStreamSource) {
+      this.mediaStreamSource.disconnect();
+      this.mediaStreamSource = null;
+    }
     this.isRecording = false;
     addDebugLog('Audio recording stopped');
   }
 
   // Send PCM audio data to server
   sendAudioData(pcmData) {
-    if (!this.currentCall || !window.socketRef?.current) return;
-
-    // Convert Int16Array to Uint8Array for base64 encoding
-    const uint8Array = new Uint8Array(pcmData.buffer);
-
-    // Convert to base64
-    let binary = '';
-    const len = uint8Array.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
+    if (!this.currentCall) {
+      addDebugLog('No current call, skipping audio data send');
+      return;
     }
-    const base64Data = btoa(binary);
 
-    // Send via socket
-    window.socketRef.current.emit('audio-data', {
-      callId: this.currentCall.id,
-      audioData: base64Data,
-      sampleRate: this.sampleRate,
-      channels: this.channels,
-      targetId: this.currentCall.targetId
-    });
+    if (!window.socketRef?.current) {
+      addDebugLog('No socket connection available, skipping audio data send', 'error');
+      return;
+    }
 
-    addDebugLog(`Sent ${pcmData.length} PCM samples (${base64Data.length} bytes)`);
+    if (!window.socketRef.current.connected) {
+      addDebugLog('Socket is not connected, skipping audio data send', 'error');
+      return;
+    }
+
+    try {
+      // Convert Int16Array to Uint8Array for base64 encoding
+      const uint8Array = new Uint8Array(pcmData.buffer);
+
+      // Convert to base64
+      let binary = '';
+      const len = uint8Array.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64Data = btoa(binary);
+
+      // Send via socket
+      window.socketRef.current.emit('audio-data', {
+        callId: this.currentCall.id,
+        audioData: base64Data,
+        sampleRate: this.sampleRate,
+        channels: this.channels,
+        targetId: this.currentCall.targetId
+      });
+
+      addDebugLog(`Sent ${pcmData.length} PCM samples (${base64Data.length} bytes) to ${this.currentCall.targetId}`);
+    } catch (error) {
+      addDebugLog(`Error sending audio data: ${error.message}`, 'error');
+    }
   }
 
   // Handle incoming audio data
   handleIncomingAudio(data) {
-    if (!this.currentCall || data.callId !== this.currentCall.id) return;
+    if (!this.currentCall) {
+      addDebugLog('No current call, ignoring incoming audio');
+      return;
+    }
+
+    if (data.callId !== this.currentCall.id) {
+      addDebugLog(`Audio data for different call (${data.callId} vs ${this.currentCall.id}), ignoring`);
+      return;
+    }
 
     try {
       // Decode base64 PCM data
@@ -144,7 +175,7 @@ export class AudioHandlerClass {
       // Add to audio queue
       this.audioQueue.push(pcmData);
 
-      addDebugLog(`Added PCM data to queue (queue length: ${this.audioQueue.length})`);
+      addDebugLog(`Added PCM data to queue (${pcmData.length} samples, queue length: ${this.audioQueue.length})`);
 
       // Start playing if not already playing
       if (!this.isPlaying) {
@@ -228,9 +259,9 @@ export class AudioHandlerClass {
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
 
-      source.start();
+      source.start(0);
 
-      addDebugLog('PCM audio chunk played successfully');
+      addDebugLog(`PCM audio chunk played successfully (${pcmData.length} samples)`);
 
     } catch (error) {
       addDebugLog(`Error playing PCM data: ${error.message}`, 'error');

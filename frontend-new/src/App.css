@@ -1,481 +1,877 @@
-/* R1-Walky Styles - Optimized for small screens */
+/* R1-Walky Walkie Talkie Design */
 
+/* Import PG font */
 @font-face {
     font-family: 'PG';
     src: url('/pg.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
 }
 
+/* Reset and Full Screen Setup */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'PG', monospace;
 }
 
-body {
-    width: 240px;
-    height: 282px;
-    overflow-y: auto;
-    overflow-x: hidden;
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'PG', 'Courier New', monospace;
     background: #000;
-    color: #fff;
-    font-size: 12px;
 }
 
-.app {
+#root {
     width: 100%;
-    min-height: 100%;
-    position: relative;
+    height: 100%;
 }
 
-/* Screen Management */
-.screen {
-    display: none;
-    width: 100%;
-    min-height: 100%;
-    flex-direction: column;
-}
-
-.screen.active {
+/* Main Walkie Talkie Container */
+.r1-device {
+    width: 100vw;
+    height: 100vh;
     display: flex;
+    flex-direction: column;
+    background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+    border: 2px solid #ff6b35;
+    border-radius: 8px;
+    padding: 6px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
 }
 
-.header {
-    background: #000;
-    padding: 8px 12px;
-    border-bottom: 1px solid #333;
-    text-align: center;
+/* Add industrial texture overlay */
+.r1-device::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+    background-size: 8px 8px;
+    pointer-events: none;
+    z-index: 1;
 }
 
-.header h1 {
-    font-size: 16px;
-    font-weight: bold;
-    color: #FF6B35; /* Lautuche orange */
+.r1-device > * {
+    position: relative;
+    z-index: 2;
 }
 
-.user-info {
-    font-size: 10px;
-    color: #888;
-    margin-top: 4px;
+/* LCD Screen - Redesigned for walkie talkie look */
+.lcd-screen {
+    width: 100%;
+    height: 35vh;
+    min-height: 100px;
+    max-height: 180px;
+    background: linear-gradient(145deg, #2a4a2a 0%, #1a3a1a 100%);
+    border: 3px solid #333;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.content {
-    flex: 1;
+/* LCD scanlines effect */
+.lcd-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 1px,
+        rgba(0, 255, 0, 0.03) 1px,
+        rgba(0, 255, 0, 0.03) 2px
+    );
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* LCD glow effect */
+.lcd-screen::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: radial-gradient(circle at center, rgba(0, 255, 0, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* LCD Content - Optimized for readability */
+.lcd-content {
+    width: 100%;
+    height: 100%;
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-}
-
-/* Buttons */
-.btn {
-    background: #333;
-    border: 1px solid #555;
-    color: #fff;
-    padding: 6px 12px;
-    font-size: 11px;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: all 0.1s;
-}
-
-.btn:hover {
-    background: #555;
-}
-
-.btn.primary {
-    background: #FF6B35; /* Lautuche orange */
-    border-color: #E55A2B;
-    color: #000;
-}
-
-.btn.primary:hover {
-    background: #E55A2B;
-}
-
-.btn.small {
-    padding: 4px 8px;
-    font-size: 10px;
-}
-
-/* Status */
-.status {
-    font-size: 10px;
+    justify-content: flex-start;
+    align-items: center;
     text-align: center;
-    color: #888;
-    margin: 4px 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    background: transparent;
+    color: #00ff44;
+    font-family: 'PG', 'Courier New', monospace;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
 }
 
-.status.online {
-    color: #4CAF50;
+.lcd-content::-webkit-scrollbar {
+    width: 4px;
 }
 
-.status.offline {
-    color: #f44336;
+.lcd-content::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.status.error {
-    color: #f44336;
+.lcd-content::-webkit-scrollbar-thumb {
+    background: #00ff44;
+    border-radius: 2px;
 }
 
-/* Friends Section */
-.friends-section {
+.lcd-text {
+    font-size: clamp(11px, 3.5vw, 16px);
+    color: #00ff44 !important;
+    margin: 2px 0;
+    font-weight: bold;
+    background: transparent;
+    line-height: 1.2;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.lcd-title {
+    font-size: clamp(14px, 4.5vw, 20px);
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #00ff44 !important;
+    background: transparent;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+    letter-spacing: 1px;
+}
+
+.connect-message {
+    font-size: clamp(16px, 5vw, 24px);
+    color: #00ff44 !important;
+    margin-bottom: 4px;
+    font-weight: bold;
+    background: transparent;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+}
+
+.status-line {
+    width: 60%;
+    height: 2px;
+    background: #00ff44;
+    margin: 6px 0;
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+}
+
+.status-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 90%;
+    font-size: clamp(10px, 3vw, 14px);
+    color: #00ff44 !important;
+    font-weight: bold;
+    background: transparent;
+    margin-bottom: 2px;
+}
+
+.status-connected {
+    color: #00ff44 !important;
+    font-weight: bold;
+    background: transparent;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.5);
+}
+
+.status-disconnected {
+    color: #ff4444 !important;
+    background: transparent;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.5);
+}
+
+/* Bottom Controls - Redesigned walkie talkie layout */
+.speaker-controls {
     flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    gap: 12px;
+    min-height: 120px;
+}
+
+/* Large PTT Button - Main feature */
+.speaker-area {
+    width: clamp(80px, 25vw, 120px);
+    height: clamp(80px, 25vw, 120px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #444 0%, #222 50%, #111 100%);
+    border: 3px solid #333;
+    box-shadow: 
+        inset 0 0 10px rgba(0,0,0,0.7),
+        0 3px 6px rgba(0,0,0,0.4),
+        0 0 0 1px #555;
+    flex-shrink: 0;
+}
+
+/* PTT Button inner rings */
+.speaker-area::before {
+    content: '';
+    position: absolute;
+    width: 75%;
+    height: 75%;
+    border-radius: 50%;
+    border: 2px solid #444;
+    background: radial-gradient(circle at 30% 30%, #333 0%, #111 100%);
+    z-index: 1;
+}
+
+.speaker-area::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    border-radius: 50%;
+    border: 1px solid #222;
+    background: radial-gradient(circle at 30% 30%, #222 0%, #000 100%);
+    z-index: 2;
+}
+
+/* PTT Active state */
+.speaker-area:active,
+.speaker-area.ptt-active {
+    background: radial-gradient(circle at 30% 30%, #ff6b35 0%, #ff4500 50%, #cc3300 100%);
+    border-color: #ff4500;
+    transform: scale(0.97);
+    box-shadow: 
+        inset 0 0 15px rgba(255, 107, 53, 0.8),
+        0 0 15px rgba(255, 107, 53, 0.6),
+        0 0 0 2px #ff6b35;
+}
+
+.speaker-area:active::before,
+.speaker-area.ptt-active::before {
+    border-color: #ff8855;
+    background: radial-gradient(circle at 30% 30%, #ff7744 0%, #dd3311 100%);
+}
+
+.speaker-area:active::after,
+.speaker-area.ptt-active::after {
+    border-color: #ffaa77;
+    background: radial-gradient(circle at 30% 30%, #ff9966 0%, #aa2200 100%);
+}
+
+.speaker-svg {
+    width: clamp(20px, 8vw, 35px);
+    height: clamp(20px, 8vw, 35px);
+    opacity: 0.8;
+    filter: brightness(0.8) invert(1) contrast(1.2);
+    transition: all 0.15s ease;
+    position: relative;
+    z-index: 3;
+}
+
+.speaker-area:hover .speaker-svg {
+    opacity: 1;
+    filter: brightness(1) invert(1) contrast(1.5);
+    transform: scale(1.05);
+}
+
+.speaker-area.ptt-active .speaker-svg {
+    filter: brightness(1) invert(0) contrast(1.5);
+    transform: scale(1.1);
+}
+
+/* Side Controls - Vertical layout */
+.controls-area {
     display: flex;
     flex-direction: column;
-}
-
-.section-header h2 {
-    font-size: 12px;
-    color: #FF6B35; /* Lautuche orange */
-    margin-bottom: 4px;
-}
-
-.friends-list {
+    gap: 8px;
+    align-items: stretch;
+    justify-content: center;
     flex: 1;
-    background: #111;
-    border: 1px solid #333;
-    max-height: 100px;
-    overflow-y: auto;
+    max-width: 100px;
+    padding: 0;
 }
 
+/* Control Buttons - Walkie talkie style */
+.control-btn {
+    width: 100%;
+    height: 32px;
+    font-size: clamp(9px, 2.5vw, 12px);
+    background: linear-gradient(145deg, #333 0%, #222 100%);
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'PG', 'Courier New', monospace;
+    font-weight: bold;
+    transition: all 0.15s ease;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.control-btn:hover {
+    background: linear-gradient(145deg, #444 0%, #333 100%);
+    color: #fff;
+    border-color: #666;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
+}
+
+.control-btn:active {
+    background: linear-gradient(145deg, #222 0%, #111 100%);
+    transform: translateY(1px);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Special button states */
+.control-btn.active {
+    background: linear-gradient(145deg, #ff6b35 0%, #ff4500 100%);
+    color: #fff;
+    border-color: #ff6b35;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.2),
+        0 0 8px rgba(255, 107, 53, 0.4);
+}
+
+/* Friends List - LCD Style */
+.friends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 40vh;
+    min-height: 60px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    margin-top: 4px;
+}
+
+.friends-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.friends-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.friends-list::-webkit-scrollbar-thumb {
+    background: #00ff44;
+    border-radius: 2px;
+}
+
+.friends-list::-webkit-scrollbar-thumb:hover {
+    background: #00dd33;
+}
+
+/* Add Friend Input - LCD themed */
+.add-friend-input-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 6px;
+    background: rgba(0, 255, 68, 0.05);
+    border: 1px solid rgba(0, 255, 68, 0.2);
+    border-radius: 4px;
+}
+
+.add-friend-input {
+    flex: 1;
+    border: 1px solid #00ff44;
+    border-radius: 3px;
+    padding: 4px 8px;
+    background: rgba(0, 20, 0, 0.8);
+    color: #00ff44;
+    font-family: 'PG', 'Courier New', monospace;
+    font-size: clamp(10px, 2.8vw, 13px);
+    outline: none;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-input:focus {
+    border-color: #00ff88;
+    background: rgba(0, 30, 0, 0.9);
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-input::placeholder {
+    color: rgba(0, 255, 68, 0.5);
+    font-style: italic;
+}
+
+.add-friend-check-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #00ff44;
+    border-radius: 3px;
+    background: rgba(0, 20, 0, 0.8);
+    color: #00ff44;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-check-btn:hover:not(:disabled) {
+    background: rgba(0, 40, 0, 0.9);
+    border-color: #00ff88;
+    box-shadow: 0 0 4px rgba(0, 255, 68, 0.3);
+}
+
+.add-friend-check-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Friends Text List - LCD style */
+.friends-text-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 45vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #00ff44 transparent;
+}
+
+.friends-text-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.friends-text-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.friends-text-list::-webkit-scrollbar-thumb {
+    background: #00ff44;
+}
+
+/* Friend Text Line - LCD themed */
+.friend-text-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px dotted rgba(0, 255, 68, 0.3);
+    font-family: 'PG', 'Courier New', monospace;
+    font-size: clamp(11px, 3vw, 14px);
+    color: #00ff44;
+    position: relative;
+}
+
+.friend-text-line:last-child {
+    border-bottom: none;
+}
+
+.friend-text-name {
+    flex: 1;
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.friend-text-name:hover {
+    background: rgba(0, 255, 68, 0.1);
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+}
+
+.friend-remove-x {
+    background: none;
+    border: none;
+    color: #ff4444;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 2px;
+    margin-left: 4px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.3);
+}
+
+.friend-remove-x:hover {
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff6666;
+    transform: scale(1.1);
+    text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
+}
+
+/* No Friends Message - LCD themed */
+.no-friends {
+    text-align: center;
+    color: rgba(0, 255, 68, 0.6);
+    font-size: clamp(10px, 2.8vw, 13px);
+    font-style: italic;
+    padding: 12px;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.2);
+}
+
+/* Friend Item - LCD styled */
 .friend-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 6px 8px;
-    border-bottom: 1px solid #222;
-    cursor: pointer;
-    font-size: 11px;
+    margin: 1px 0;
+    border: 1px solid transparent;
+    font-size: clamp(11px, 3vw, 14px);
+    background: rgba(0, 255, 68, 0.05);
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    position: relative;
+    border: 1px solid rgba(0, 255, 68, 0.2);
 }
 
 .friend-item:hover {
-    background: #222;
+    background: rgba(0, 255, 68, 0.1);
+    transform: translateX(2px);
+    box-shadow: 0 2px 6px rgba(0, 255, 68, 0.2);
+    border-color: rgba(0, 255, 68, 0.4);
 }
 
-.friend-item:last-child {
-    border-bottom: none;
-}
-
-.friend-name {
-    flex: 1;
-}
-
-.friend-status {
-    font-size: 10px;
-    color: #666;
-}
-
-.friend-status.online {
-    color: #4CAF50;
-}
-
-/* PTT Section */
-.ptt-section {
-    text-align: center;
-    margin: 8px 0;
-}
-
-.ptt-button {
-    background: #333;
-    border: 2px solid #555;
-    color: #fff;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    transition: all 0.1s;
-}
-
-.ptt-button:hover {
-    border-color: #777;
-}
-
-.ptt-button.active {
-    background: #FF6B35; /* Lautuche orange */
-    border-color: #E55A2B;
-    color: #000;
-}
-
-/* Volume Control */
-.volume-control {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin: 8px 0;
-    font-size: 10px;
-}
-
-.volume-control label {
-    color: #FF6B35; /* Lautuche orange */
-    font-size: 10px;
-}
-
-.volume-control input[type="range"] {
-    width: 60px;
-    height: 4px;
-    background: #333;
-    border-radius: 2px;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-}
-
-.volume-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #FF6B35; /* Lautuche orange */
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.volume-control input[type="range"]::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    background: #FF6B35; /* Lautuche orange */
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-}
-
-.volume-control #volume-value {
-    color: #fff;
-    font-size: 10px;
-    min-width: 30px;
-    text-align: center;
-}
-
-/* Call Status */
-.call-status {
-    font-size: 10px;
-    text-align: center;
-    color: #888;
-    margin: 4px 0;
-}
-
-/* Modal */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background: #111;
-    border: 1px solid #333;
-    padding: 16px;
-    width: 200px;
-    text-align: center;
-}
-
-.modal-content h3 {
-    font-size: 14px;
-    margin-bottom: 12px;
-    color: #FF6B35; /* Lautuche orange */
-}
-
-/* Inputs */
-input {
-    background: #222;
-    border: 1px solid #555;
-    color: #fff;
-    padding: 6px;
-    font-size: 11px;
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-input:focus {
-    outline: none;
-    border-color: #FF6B35; /* Lautuche orange */
-}
-
-/* Friend Requests */
-.friend-requests {
-    background: #111;
-    border: 1px solid #333;
-    margin-bottom: 8px;
-    padding: 8px;
-}
-
-.friend-request {
+.friend-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
-    font-size: 11px;
+    flex: 1;
+    cursor: pointer;
 }
 
-.request-buttons {
+.remove-friend-btn {
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff4444;
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    cursor: pointer;
     display: flex;
-    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    transition: all 0.15s ease;
+    text-shadow: 0 0 2px rgba(255, 68, 68, 0.3);
 }
 
-.request-buttons button {
-    padding: 2px 6px;
-    font-size: 10px;
-    min-width: 24px;
+.remove-friend-btn:hover {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff6666;
+    border-color: rgba(255, 68, 68, 0.5);
+    transform: scale(1.1);
+    text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
 }
 
-/* Incoming Call Overlay */
-.incoming-call-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.95);
+.friend-item.callable {
+    background: rgba(0, 255, 68, 0.1);
+    border-color: rgba(0, 255, 68, 0.4);
+}
+
+.friend-item.calling {
+    background: rgba(255, 204, 0, 0.1);
+    border-color: rgba(255, 204, 0, 0.4);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.friend-item.incoming-call {
+    background: rgba(0, 255, 68, 0.15);
+    border-color: rgba(0, 255, 68, 0.6);
+    animation: ring 0.5s infinite;
+}
+
+@keyframes ring {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.02); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.friend-item.selected {
+    background: rgba(0, 255, 68, 0.2);
+    border-color: rgba(0, 255, 68, 0.6);
+    box-shadow: 0 0 8px rgba(0, 255, 68, 0.3);
+}
+
+.friend-name {
+    color: #00ff44 !important;
+    font-weight: bold;
+    background: transparent;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+}
+
+.friend-status {
+    color: #00dd33 !important;
+    font-size: clamp(8px, 2.2vw, 11px);
+    font-weight: bold;
+    background: transparent;
+    text-shadow: 0 0 2px rgba(0, 221, 51, 0.3);
+}
+
+/* Settings - LCD styled */
+.settings-list {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    z-index: 1000;
+    padding: 6px 8px;
+    font-size: clamp(10px, 2.8vw, 13px);
+    color: #00ff44 !important;
+    background: rgba(0, 255, 68, 0.05);
+    border: 1px solid rgba(0, 255, 68, 0.2);
+    border-radius: 4px;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
 }
 
-.incoming-call-content {
+/* Back Button - Walkie talkie styled */
+.back-btn {
+    background: linear-gradient(145deg, #333 0%, #222 100%);
+    border: 1px solid #555;
+    color: #ccc !important;
+    font-size: clamp(9px, 2.5vw, 12px);
+    padding: 4px 8px;
+    cursor: pointer;
+    font-family: 'PG', 'Courier New', monospace;
+    margin-right: 8px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
+    font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    align-self: flex-start;
+}
+
+.back-btn:hover {
+    background: linear-gradient(145deg, #444 0%, #333 100%);
+    color: #fff !important;
+    border-color: #666;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
+}
+
+.back-btn:active {
+    background: linear-gradient(145deg, #222 0%, #111 100%);
+    transform: translateY(1px);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* No Data Message - LCD themed */
+.no-data {
     text-align: center;
-    padding: 20px;
-    background: #111;
-    border: 2px solid #FF6B35;
-    border-radius: 8px;
-    width: 200px;
+    color: rgba(0, 255, 68, 0.6) !important;
+    font-size: clamp(10px, 2.8vw, 13px);
+    padding: 12px;
+    background: transparent;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.2);
 }
 
-.caller-info h2 {
-    font-size: 14px;
-    color: #FF6B35;
+/* Call Interface - Walkie talkie themed */
+.caller-info {
+    text-align: center;
     margin-bottom: 8px;
 }
 
 .caller-name {
-    font-size: 16px;
+    color: #00ff44;
+    font-size: clamp(14px, 4vw, 18px);
     font-weight: bold;
-    color: #fff;
-    margin-bottom: 16px;
+    margin-bottom: 5px;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+    font-family: 'PG', 'Courier New', monospace;
+}
+
+.call-status {
+    color: rgba(0, 255, 68, 0.8);
+    font-size: clamp(10px, 3vw, 14px);
+    text-shadow: 0 0 2px rgba(0, 255, 68, 0.3);
+    font-family: 'PG', 'Courier New', monospace;
 }
 
 .call-buttons {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     justify-content: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
 }
 
-.btn.call-accept {
-    background: #4CAF50;
-    border-color: #45a049;
-    color: #fff;
-    padding: 8px 16px;
-    font-size: 12px;
-}
-
-.btn.call-accept:hover {
-    background: #45a049;
-}
-
-.btn.call-reject {
-    background: #f44336;
-    border-color: #d32f2f;
-    color: #fff;
-    padding: 8px 16px;
-    font-size: 12px;
-}
-
-.btn.call-reject:hover {
-    background: #d32f2f;
-}
-
-/* Debug Panel */
-.debug {
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 4px;
-    font-size: 8px;
-    max-width: 100px;
-}
-
-/* Debug Overlay */
-.debug-overlay {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 200px;
-    max-height: 150px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid #333;
-    border-radius: 4px;
-    z-index: 10000;
-    font-size: 8px;
-    overflow: hidden;
-}
-
-.debug-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 8px;
-    background: #333;
-    border-bottom: 1px solid #555;
-}
-
-.debug-header span {
-    color: #FF6B35;
-    font-weight: bold;
-}
-
-.debug-header button {
-    background: none;
+.call-accept-btn, .call-reject-btn, .call-cancel-btn {
+    padding: 6px 12px;
     border: none;
-    color: #fff;
+    border-radius: 4px;
+    font-size: clamp(10px, 2.8vw, 13px);
+    font-weight: bold;
     cursor: pointer;
-    font-size: 10px;
-    padding: 2px;
+    font-family: 'PG', 'Courier New', monospace;
+    min-width: 60px;
+    background: linear-gradient(145deg, #333 0%, #222 100%);
+    color: #ccc;
+    border: 1px solid #555;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
-.debug-content {
-    max-height: 120px;
-    overflow-y: auto;
-    padding: 4px;
+.call-accept-btn {
+    background: linear-gradient(145deg, #006600 0%, #004400 100%);
+    border-color: #008800;
+    color: #00ff44;
 }
 
-.debug-log {
-    margin-bottom: 2px;
-    padding: 2px 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    word-wrap: break-word;
+.call-accept-btn:hover {
+    background: linear-gradient(145deg, #008800 0%, #006600 100%);
+    border-color: #00aa00;
+    color: #00ff66;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
-.debug-log.error {
-    background: rgba(244, 67, 54, 0.3);
-    color: #ff6b6b;
+.call-reject-btn, .call-cancel-btn {
+    background: linear-gradient(145deg, #660000 0%, #440000 100%);
+    border-color: #880000;
+    color: #ff4444;
 }
 
-.debug-log.warn {
-    background: rgba(255, 152, 0, 0.3);
-    color: #ffb74d;
+.call-reject-btn:hover, .call-cancel-btn:hover {
+    background: linear-gradient(145deg, #880000 0%, #660000 100%);
+    border-color: #aa0000;
+    color: #ff6666;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
 }
 
-.debug-log.info {
-    background: rgba(76, 175, 80, 0.3);
-    color: #81c784;
+/* End Call Button */
+.call-end-btn {
+    background: linear-gradient(145deg, #660000 0%, #440000 100%);
+    color: #ff4444;
+    border: 1px solid #880000;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: clamp(10px, 2.8vw, 13px);
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'PG', 'Courier New', monospace;
+    margin-top: 5px;
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.15s ease;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
+
+.call-end-btn:hover {
+    background: linear-gradient(145deg, #880000 0%, #660000 100%);
+    color: #ff6666;
+    border-color: #aa0000;
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 3px 6px rgba(0,0,0,0.4);
+}
+
+/* Calling info */
+.calling-info {
+    text-align: center;
+    margin: 8px 0;
+}
+
+.target-name {
+    font-size: clamp(16px, 4.5vw, 20px);
+    font-weight: bold;
+    color: #00ff44;
+    margin-bottom: 8px;
+    font-family: 'PG', 'Courier New', monospace;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+}
+

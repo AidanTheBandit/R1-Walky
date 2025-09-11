@@ -23,4 +23,22 @@ function IncomingCallOverlay({ showIncomingCall, incomingCaller, acceptCall, rej
   )
 }
 
+function CallingOverlay({ showCalling, targetName, callStatus, cancelCall }) {
+  if (!showCalling) return null
+
+  return (
+    <div className="calling-overlay">
+      <div className="calling-content">
+        <h2>Calling...</h2>
+        <div className="calling-target">{targetName}</div>
+        <div className="calling-status">{callStatus}</div>
+        <button className="cancel-call-btn" onClick={cancelCall}>
+          Cancel Call
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export { IncomingCallOverlay, CallingOverlay }
 export default IncomingCallOverlay
