@@ -256,35 +256,24 @@ function MainScreen({
           }}>
             STATUS: {connectionStatus.toUpperCase()}
           </div>
+          
+          <div className="status-line" style={{ marginTop: '12px' }}></div>
+          
           {friendRequests.length > 0 && (
-            <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)' }}>
+            <div className="lcd-text" style={{ color: '#ffaa00', textShadow: '0 0 2px rgba(255, 170, 0, 0.5)', textAlign: 'center' }}>
               <span className="status-led calling"></span>
               {friendRequests.length} PENDING REQUEST{friendRequests.length > 1 ? 'S' : ''}
             </div>
           )}
           
-          <div className="status-line" style={{ marginTop: '8px' }}></div>
-          <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', marginBottom: '4px' }}>
-            USE SCROLL WHEEL TO NAVIGATE
-          </div>
-          <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', marginBottom: '4px' }}>
-            SIDE BUTTON TO SELECT
-          </div>
-          
-          {/* Selected Menu Item Display */}
-          <div style={{ marginTop: '8px', width: '100%', textAlign: 'center' }}>
-            <div className="lcd-text" style={{
-              padding: '4px 12px',
-              backgroundColor: 'rgba(0, 255, 68, 0.2)',
-              border: '1px solid rgba(0, 255, 68, 0.5)',
-              borderRadius: '4px',
-              textShadow: '0 0 4px rgba(0, 255, 68, 0.5)',
-              fontSize: 'clamp(12px, 3.5vw, 16px)',
-              fontWeight: 'bold'
-            }}>
-              {'> '}{mainMenuOptions[selectedMenuIndex]}
-              {mainMenuOptions[selectedMenuIndex] === 'REQUESTS' && friendRequests.length > 0 && ` (${friendRequests.length})`}
+          {friends.length > 0 && (
+            <div className="lcd-text" style={{ textAlign: 'center', marginTop: '6px' }}>
+              {friends.length} CONTACT{friends.length > 1 ? 'S' : ''} AVAILABLE
             </div>
+          )}
+          
+          <div className="lcd-text" style={{ fontSize: 'clamp(9px, 2.5vw, 12px)', textAlign: 'center', marginTop: '12px', opacity: 0.8 }}>
+            USE CONTACTS BUTTON
           </div>
         </div>
       )}
