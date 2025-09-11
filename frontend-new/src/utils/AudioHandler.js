@@ -21,8 +21,10 @@ export class AudioHandlerClass {
         sampleRate: 44100 // Match the getUserMedia sample rate
       });
 
+      // Don't try to resume here - wait for user gesture
       if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+        addDebugLog('Audio context is suspended - will resume when needed');
+        return true;
       }
 
       addDebugLog('Audio context initialized successfully');
@@ -54,35 +56,48 @@ export class AudioHandlerClass {
     try {
       addDebugLog('Starting audio recording...');
 
-      // Create media stream source
-      this.mediaStreamSource = this.audioContext.createMediaStreamSource(localStream);
+      // Ensure audio context is running
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+        addDebugLog('Resumed suspended audio context');
+      }
 
-      // Create script processor for raw audio data (still works despite deprecation)
-      this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+      // Create media stream source (don't recreate if already exists)
+      if (!this.mediaStreamSource) {
+        this.mediaStreamSource = this.audioContext.createMediaStreamSource(localStream);
+        addDebugLog('Created media stream source');
+      }
 
-      this.scriptProcessor.onaudioprocess = (event) => {
-        if (!this.currentCall || !this.isRecording) return;
+      // Create script processor for raw audio data (don't recreate if already exists)
+      if (!this.scriptProcessor) {
+        this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+        addDebugLog('Created script processor');
 
-        const inputBuffer = event.inputBuffer;
-        const inputData = inputBuffer.getChannelData(0);
+        this.scriptProcessor.onaudioprocess = (event) => {
+          if (!this.currentCall || !this.isRecording) return;
 
-        // Convert Float32Array to Int16Array for transmission
-        const pcmData = new Int16Array(inputData.length);
-        const len = inputData.length;
-        for (let i = 0; i < len; i++) {
-          pcmData[i] = inputData[i] * 32767 | 0;
-        }
+          const inputBuffer = event.inputBuffer;
+          const inputData = inputBuffer.getChannelData(0);
 
-        // Send PCM data to server
-        this.sendAudioData(pcmData);
-      };
+          // Convert Float32Array to Int16Array for transmission
+          const pcmData = new Int16Array(inputData.length);
+          const len = inputData.length;
+          for (let i = 0; i < len; i++) {
+            pcmData[i] = inputData[i] * 32767 | 0;
+          }
 
-      // Connect nodes
-      this.mediaStreamSource.connect(this.scriptProcessor);
-      this.scriptProcessor.connect(this.audioContext.destination);
+          // Send PCM data to server
+          this.sendAudioData(pcmData);
+        };
 
-      this.isRecording = true;
-      addDebugLog('Audio recording started successfully');
+        // Connect nodes
+        this.mediaStreamSource.connect(this.scriptProcessor);
+        this.scriptProcessor.connect(this.audioContext.destination);
+        addDebugLog('Connected audio processing nodes');
+      }
+
+      // Note: Don't set isRecording here - let PTT control it
+      addDebugLog('Audio recording infrastructure ready');
       return true;
 
     } catch (error) {

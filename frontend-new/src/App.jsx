@@ -240,10 +240,15 @@ function App() {
       addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
     })
 
-    // Start recording in AudioHandler
+    // Start audio recording in AudioHandler (not just flag, actual recording)
     if (AudioHandler.current) {
       AudioHandler.current.isRecording = true
-      addDebugLogLocal('Audio recording enabled')
+      // Ensure the audio recording is actively processing audio
+      if (!AudioHandler.current.scriptProcessor && localStreamRef.current) {
+        addDebugLogLocal('Re-initializing audio recording for PTT')
+        AudioHandler.current.startRecording(localStreamRef.current)
+      }
+      addDebugLogLocal('Audio recording enabled and active')
     }
 
     // Send audio stream started event
@@ -274,7 +279,7 @@ function App() {
       addDebugLogLocal(`Disabled audio track: ${track.label} (${track.readyState})`)
     })
 
-    // Stop recording in AudioHandler
+    // Stop recording in AudioHandler (but keep the processor ready for next PTT)
     if (AudioHandler.current) {
       AudioHandler.current.isRecording = false
       addDebugLogLocal('Audio recording disabled')
@@ -833,22 +838,22 @@ function App() {
     setCallStatus('')
   }
 
-  const addFriend = async () => {
+  const addFriend = async (friendUsername) => {
     if (!currentUser) {
       addDebugLogLocal('Cannot add friend: no current user', 'error')
-      return
+      return false
     }
 
-    const friendUsername = document.getElementById('friend-username').value.trim()
+    // Use the parameter passed from the component instead of DOM element
     if (!friendUsername) {
       setCallStatus('Enter a username')
-      return
+      return false
     }
 
     // Prevent adding yourself
     if (friendUsername.toLowerCase() === currentUser.username.toLowerCase()) {
       setCallStatus('Cannot add yourself as friend')
-      return
+      return false
     }
 
     addDebugLogLocal(`Adding friend: ${friendUsername}`)
@@ -868,15 +873,16 @@ function App() {
       if (response.ok) {
         const data = await response.json()
         setCallStatus(`Friend request sent to ${friendUsername}!`)
-        // Clear the input
-        document.getElementById('friend-username').value = ''
+        return true
       } else {
         const error = await response.json()
         setCallStatus(error.error || 'Failed to send friend request')
+        return false
       }
     } catch (error) {
       addDebugLogLocal(`Add friend error: ${error.message}`, 'error')
       setCallStatus('Network error')
+      return false
     }
   }
 
