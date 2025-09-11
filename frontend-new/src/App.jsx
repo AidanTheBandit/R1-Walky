@@ -223,6 +223,74 @@ function App() {
     setDebugLogs(prev => [...prev.slice(-9), logEntry]) // Keep last 10 logs
   }
 
+  const handlePTTStart = () => {
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLogLocal('PTT start ignored: no active call or media stream', 'warn')
+      return
+    }
+
+    setIsPTTPressed(true)
+    setCallStatus('Talking...')
+    addDebugLogLocal('PTT activated - enabling microphone')
+
+    // Enable all audio tracks
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    audioTracks.forEach(track => {
+      track.enabled = true
+      addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
+    })
+
+    // Start recording in AudioHandler
+    if (AudioHandler.current) {
+      AudioHandler.current.isRecording = true
+      addDebugLogLocal('Audio recording enabled')
+    }
+
+    // Send audio stream started event
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('start-audio-stream', {
+        callId: currentCall.id
+      })
+      addDebugLogLocal('Sent audio stream started event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT start event', 'warn')
+    }
+  }
+
+  const handlePTTEnd = () => {
+    if (!currentCall || !localStreamRef.current) {
+      addDebugLogLocal('PTT end ignored: no active call or media stream', 'warn')
+      return
+    }
+
+    setIsPTTPressed(false)
+    setCallStatus(`Connected to ${currentCall.targetUsername}`)
+    addDebugLogLocal('PTT released - disabling microphone')
+
+    // Disable all audio tracks
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    audioTracks.forEach(track => {
+      track.enabled = false
+      addDebugLogLocal(`Disabled audio track: ${track.label} (${track.readyState})`)
+    })
+
+    // Stop recording in AudioHandler
+    if (AudioHandler.current) {
+      AudioHandler.current.isRecording = false
+      addDebugLogLocal('Audio recording disabled')
+    }
+
+    // Send audio stream stopped event
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('stop-audio-stream', {
+        callId: currentCall.id
+      })
+      addDebugLogLocal('Sent audio stream stopped event')
+    } else {
+      addDebugLogLocal('Socket not available for PTT end event', 'warn')
+    }
+  }
+
   // Test backend connectivity
   const testBackendConnectivity = async () => {
     addDebugLogLocal('Testing backend connectivity...')
@@ -763,74 +831,6 @@ function App() {
     setShowGroupCall(false)
     setGroupCallData(null)
     setCallStatus('')
-  }
-
-  const handlePTTStart = () => {
-    if (!currentCall || !localStreamRef.current) {
-      addDebugLogLocal('PTT start ignored: no active call or media stream', 'warn')
-      return
-    }
-
-    setIsPTTPressed(true)
-    setCallStatus('Talking...')
-    addDebugLogLocal('PTT activated - enabling microphone')
-
-    // Enable all audio tracks
-    const audioTracks = localStreamRef.current.getAudioTracks()
-    audioTracks.forEach(track => {
-      track.enabled = true
-      addDebugLogLocal(`Enabled audio track: ${track.label} (${track.readyState})`)
-    })
-
-    // Start recording in AudioHandler
-    if (AudioHandler.current) {
-      AudioHandler.current.isRecording = true
-      addDebugLogLocal('Audio recording enabled')
-    }
-
-    // Send audio stream started event
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('start-audio-stream', {
-        callId: currentCall.id
-      })
-      addDebugLogLocal('Sent audio stream started event')
-    } else {
-      addDebugLogLocal('Socket not available for PTT start event', 'warn')
-    }
-  }
-
-  const handlePTTEnd = () => {
-    if (!currentCall || !localStreamRef.current) {
-      addDebugLogLocal('PTT end ignored: no active call or media stream', 'warn')
-      return
-    }
-
-    setIsPTTPressed(false)
-    setCallStatus(`Connected to ${currentCall.targetUsername}`)
-    addDebugLogLocal('PTT released - disabling microphone')
-
-    // Disable all audio tracks
-    const audioTracks = localStreamRef.current.getAudioTracks()
-    audioTracks.forEach(track => {
-      track.enabled = false
-      addDebugLogLocal(`Disabled audio track: ${track.label} (${track.readyState})`)
-    })
-
-    // Stop recording in AudioHandler
-    if (AudioHandler.current) {
-      AudioHandler.current.isRecording = false
-      addDebugLogLocal('Audio recording disabled')
-    }
-
-    // Send audio stream stopped event
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('stop-audio-stream', {
-        callId: currentCall.id
-      })
-      addDebugLogLocal('Sent audio stream stopped event')
-    } else {
-      addDebugLogLocal('Socket not available for PTT end event', 'warn')
-    }
   }
 
   const addFriend = async () => {
