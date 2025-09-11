@@ -68,38 +68,15 @@ function MainScreen({
       {currentCall ? (
         <div>
           <div className="lcd-text lcd-title">R1-WALKY</div>
-          <div className="connect-message">Connect with "{currentCall.targetUsername}"</div>
-          <div className="status-line"></div>
-          <div className="status-text">
-            <span>Status:</span>
-            <span className={currentCall.status === 'connected' ? 'status-connected' : 'status-disconnected'}>
-              {currentCall.status === 'connected' ? 'Connected' : currentCall.status}
-            </span>
-          </div>
+          <div className="lcd-text">Connect with "{currentCall.targetUsername}"</div>
+          <div className="lcd-text">----------------------</div>
+          <div className="lcd-text lcd-status">Status: {currentCall.status === 'connected' ? 'Connected' : currentCall.status}</div>
         </div>
       ) : (
         <div>
-          <div className="lcd-text lcd-title">
-            R1-WALKY {currentUser?.username ? `- ${currentUser.username}` : ''}
-          </div>
-          <div className="status-text">
-            <span>Status:</span>
-            <span className={connectionStatus === 'Online' ? 'status-connected' : 'status-disconnected'}>
-              {connectionStatus}
-            </span>
-          </div>
-          <div className="status-line"></div>
-          <div className="menu-options">
-            <div className="menu-item" onClick={() => setCurrentScreen('friends')}>
-              FRIENDS
-            </div>
-            <div className="menu-item" onClick={() => setCurrentScreen('channels')}>
-              CHANNELS
-            </div>
-            <div className="menu-item" onClick={() => setCurrentScreen('settings')}>
-              SETTINGS
-            </div>
-          </div>
+          <div className="lcd-text lcd-title">R1-WALKY</div>
+          <div className="lcd-text">{currentUser?.username || 'User'}</div>
+          <div className="lcd-text">{connectionStatus}</div>
         </div>
       )}
     </div>
@@ -107,39 +84,36 @@ function MainScreen({
 
   const renderFriendsScreen = () => (
     <div className="lcd-content">
-      <div className="friends-title">select a friend</div>
-      <div className="status-line"></div>
-      <div className="friends-list">
-        {friends.length === 0 ? (
-          <div className="friend-item">
-            <span>No friends</span>
-            <span className="status-disconnected">not connected</span>
-          </div>
-        ) : (
-          friends.map((friend, index) => (
+      <div className="lcd-text lcd-title">
+        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
+        FRIENDS
+      </div>
+      {friends.length === 0 ? (
+        <div className="no-data">No friends</div>
+      ) : (
+        <div className="friends-list">
+          {friends.map((friend, index) => (
             <div
               key={friend.id}
               className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedFriendIndex(index)
-                callFriend(friend)
-              }}
             >
-              <span className="friend-name">{friend.username}</span>
-              <span className={friend.status === 'online' ? 'status-connected' : 'status-disconnected'}>
-                {friend.status === 'online' ? 'connected' : 'not connected'}
-              </span>
+              <div className="friend-name">{friend.username}</div>
+              <div className="friend-status">
+                {friend.status === 'online' ? '●' : '○'}
+              </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 
   const renderChannelsScreen = () => (
     <div className="lcd-content">
-      <div className="channels-title">location channels</div>
-      <div className="status-line"></div>
+      <div className="lcd-text lcd-title">
+        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
+        CHANNELS
+      </div>
       <LocationChannels
         currentUser={currentUser}
         onChannelJoined={(channelId) => {
@@ -152,11 +126,13 @@ function MainScreen({
 
   const renderSettingsScreen = () => (
     <div className="lcd-content">
-      <div className="settings-title">settings</div>
-      <div className="status-line"></div>
+      <div className="lcd-text lcd-title">
+        <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
+        SETTINGS
+      </div>
       <div className="settings-list">
         <div className="setting-item">
-          <span>volume</span>
+          <span>Volume</span>
           <input
             type="range"
             min="0"
@@ -168,8 +144,8 @@ function MainScreen({
           />
         </div>
         <div className="setting-item">
-          <span>debug</span>
-          <span>{friends.some(f => f.username.toLowerCase() === 'debugger') ? 'on' : 'off'}</span>
+          <span>Debug</span>
+          <span>{friends.some(f => f.username.toLowerCase() === 'debugger') ? 'ON' : 'OFF'}</span>
         </div>
       </div>
     </div>
@@ -190,65 +166,56 @@ function MainScreen({
 
   return (
     <div className="r1-device">
-      {/* LCD Screen - Fixed Size */}
+      {/* LCD Screen */}
       <div className="lcd-screen">
         {renderCurrentScreen()}
       </div>
 
-      {/* Control Section - Fixed Layout */}
-      <div className="control-section">
-        {/* Speaker SVG as PTT Button */}
-        <div className="speaker-section">
-          <button
-            className={`speaker-btn ${isPTTPressed ? 'active' : ''}`}
-            onMouseDown={handlePTTStart}
-            onMouseUp={handlePTTEnd}
-            onTouchStart={handlePTTStart}
-            onTouchEnd={handlePTTEnd}
-          >
-            <img src={speakerSvg} alt="Speaker" className="speaker-icon" />
-          </button>
+      {/* Speaker and Controls Section */}
+      <div className="speaker-controls">
+        <div
+          className="speaker-area"
+          onClick={isPTTPressed ? handlePTTEnd : handlePTTStart}
+        >
+          <img
+            src={speakerSvg}
+            alt="Speaker"
+            className="speaker-svg"
+          />
         </div>
-
-        {/* Vertical Button Stack */}
-        <div className="button-stack">
+        <div className="controls-area">
           <button
             className="control-btn friends-btn"
             onClick={() => setCurrentScreen('friends')}
           >
-            friends
+            👥
           </button>
           <button
             className="control-btn channels-btn"
             onClick={() => setCurrentScreen('channels')}
           >
-            channels
+            📡
           </button>
           <button
             className="control-btn settings-btn"
             onClick={() => setCurrentScreen('settings')}
           >
-            settings
+            ⚙
           </button>
-          {currentScreen !== 'main' && (
-            <button
-              className="control-btn back-btn"
-              onClick={() => setCurrentScreen('main')}
-            >
-              back
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Friend Requests Overlay */}
-      <FriendRequests
-        friendRequests={friendRequests}
-        acceptFriendRequest={acceptFriendRequest}
-        rejectFriendRequest={rejectFriendRequest}
-      />
+      {/* PTT Button */}
+      <div className="ptt-section">
+        <PTTButton
+          isPTTPressed={isPTTPressed}
+          handlePTTStart={handlePTTStart}
+          handlePTTEnd={handlePTTEnd}
+          volumeLevel={volumeLevel}
+          updateVolume={updateVolume}
+        />
+      </div>
 
-      {/* Group Call Overlay */}
       <GroupCallOverlay
         showGroupCall={showGroupCall}
         groupCallData={groupCallData}
