@@ -6,22 +6,22 @@ function FriendRequests({ friendRequests, acceptFriendRequest, rejectFriendReque
   return (
     <div className="friend-requests">
       {friendRequests.map(request => (
-        <div key={request.friendshipId} className="friend-request">
-          <span>{request.username}</span>
-          <div className="request-buttons">
+        <div key={request.friendshipId} className="friend-request-item">
+          <div className="friend-request-text">
+            Friend request from {request.username}
+          </div>
+          <div className="friend-request-buttons">
             <button
-              className="btn small accept"
+              className="friend-request-btn accept-btn"
               onClick={() => acceptFriendRequest(request.friendshipId)}
-              title="Accept friend request"
             >
-              ✓
+              accept
             </button>
             <button
-              className="btn small reject"
+              className="friend-request-btn reject-btn"
               onClick={() => rejectFriendRequest(request.friendshipId)}
-              title="Reject friend request"
             >
-              ✗
+              reject
             </button>
           </div>
         </div>

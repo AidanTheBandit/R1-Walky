@@ -4,6 +4,7 @@ import FriendsList from './FriendsList'
 import PTTButton from './PTTButton'
 import LocationChannels from './LocationChannels'
 import GroupCallOverlay from './GroupCallOverlay'
+import speakerSvg from '../assets/speaker.svg'
 
 function MainScreen({
   currentUser,
@@ -63,108 +64,177 @@ function MainScreen({
   }, [currentScreen, friends, selectedFriendIndex, callFriend])
 
   const renderMainScreen = () => (
-    <div className="main-screen">
-      <div className="lcd-screen">
-        <div className="lcd-content">
-          {currentCall ? (
-            <>
-              <div className="connect-message">connect with "{currentCall.targetUsername}"</div>
-              <div className="status-line"></div>
-              <div className="status-text">
-                <span>status</span>
-                <span className={currentCall.status === 'connected' ? 'status-connected' : 'status-disconnected'}>
-                  {currentCall.status === 'connected' ? 'connected' : currentCall.status}
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="connect-message">R1-Walky</div>
-              <div className="status-line"></div>
-              <div className="status-text">
-                <span>status</span>
-                <span className={connectionStatus === 'Online' ? 'status-connected' : 'status-disconnected'}>
-                  {connectionStatus.toLowerCase()}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="control-section">
-        <div className="flow-section">
-          <button className="flow-button">
-            Flow 1 
-            <span className="flow-arrow">⟵</span>
-          </button>
-          <button className="friends-btn" onClick={() => setCurrentScreen('friends')}>
-            friends
-          </button>
-        </div>
-
-        <div className="speaker-section">
-          <div className="speaker-grill">
-            <svg className="speaker-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
+    <div className="lcd-content">
+      {currentCall ? (
+        <>
+          <div className="connect-message">connect with "{currentCall.targetUsername}"</div>
+          <div className="status-line"></div>
+          <div className="status-text">
+            <span>status</span>
+            <span className={currentCall.status === 'connected' ? 'status-connected' : 'status-disconnected'}>
+              {currentCall.status === 'connected' ? 'connected' : currentCall.status}
+            </span>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="lcd-text lcd-title">R1-WALKY - {currentUser?.username || 'User'}</div>
+          <div className="status-line"></div>
+          <div className="status-text">
+            <span>status</span>
+            <span className={connectionStatus === 'Online' ? 'status-connected' : 'status-disconnected'}>
+              {connectionStatus.toLowerCase()}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 
   const renderFriendsScreen = () => (
-    <div className="friends-screen">
-      <button className="back-btn" onClick={() => setCurrentScreen('main')}>←</button>
-      <div className="lcd-screen">
-        <div className="lcd-content">
-          <div className="friends-title">select a friend</div>
-          <div className="status-line"></div>
-          <div className="friends-list">
-            {friends.length === 0 ? (
-              <div className="friend-item">
-                <span>No friends</span>
-                <span className="status-disconnected">not connected</span>
-              </div>
-            ) : (
-              friends.map((friend, index) => (
-                <div
-                  key={friend.id}
-                  className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedFriendIndex(index)
-                    callFriend(friend)
-                  }}
-                >
-                  <span className="friend-name">{friend.username}</span>
-                  <span className={friend.status === 'online' ? 'status-connected' : 'status-disconnected'}>
-                    {friend.status === 'online' ? 'connected' : 'not connected'}
-                  </span>
-                </div>
-              ))
-            )}
+    <div className="lcd-content">
+      <div className="friends-title">select a friend</div>
+      <div className="status-line"></div>
+      <div className="friends-list">
+        {friends.length === 0 ? (
+          <div className="friend-item">
+            <span>No friends</span>
+            <span className="status-disconnected">not connected</span>
           </div>
-        </div>
+        ) : (
+          friends.map((friend, index) => (
+            <div
+              key={friend.id}
+              className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''}`}
+              onClick={() => {
+                setSelectedFriendIndex(index)
+                callFriend(friend)
+              }}
+            >
+              <span className="friend-name">{friend.username}</span>
+              <span className={friend.status === 'online' ? 'status-connected' : 'status-disconnected'}>
+                {friend.status === 'online' ? 'connected' : 'not connected'}
+              </span>
+            </div>
+          ))
+        )}
       </div>
+    </div>
+  )
 
-      <div className="control-section">
-        <div className="speaker-section">
-          <div className="speaker-grill">
-            <svg className="speaker-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-          </div>
+  const renderChannelsScreen = () => (
+    <div className="lcd-content">
+      <div className="channels-title">location channels</div>
+      <div className="status-line"></div>
+      <LocationChannels
+        currentUser={currentUser}
+        onChannelJoined={(channelId) => {
+          console.log('Joined channel:', channelId)
+        }}
+        onGroupCallStarted={onGroupCallStarted}
+      />
+    </div>
+  )
+
+  const renderSettingsScreen = () => (
+    <div className="lcd-content">
+      <div className="settings-title">settings</div>
+      <div className="status-line"></div>
+      <div className="settings-list">
+        <div className="setting-item">
+          <span>volume</span>
+          <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.1"
+            value={volumeLevel}
+            onChange={updateVolume}
+            className="volume-slider"
+          />
+        </div>
+        <div className="setting-item">
+          <span>debug</span>
+          <span>{friends.some(f => f.username.toLowerCase() === 'debugger') ? 'on' : 'off'}</span>
         </div>
       </div>
     </div>
   )
 
-  return (
-    <div className={`r1-device screen-${currentScreen}`}>
-      {renderMainScreen()}
-      {renderFriendsScreen()}
+  const renderCurrentScreen = () => {
+    switch (currentScreen) {
+      case 'friends':
+        return renderFriendsScreen()
+      case 'channels':
+        return renderChannelsScreen()
+      case 'settings':
+        return renderSettingsScreen()
+      default:
+        return renderMainScreen()
+    }
+  }
 
+  return (
+    <div className="r1-device">
+      {/* LCD Screen - Fixed Size */}
+      <div className="lcd-screen">
+        {renderCurrentScreen()}
+      </div>
+
+      {/* Control Section - Fixed Layout */}
+      <div className="control-section">
+        {/* Speaker SVG as PTT Button */}
+        <div className="speaker-section">
+          <button
+            className={`speaker-btn ${isPTTPressed ? 'active' : ''}`}
+            onMouseDown={handlePTTStart}
+            onMouseUp={handlePTTEnd}
+            onTouchStart={handlePTTStart}
+            onTouchEnd={handlePTTEnd}
+          >
+            <img src={speakerSvg} alt="Speaker" className="speaker-icon" />
+          </button>
+        </div>
+
+        {/* Vertical Button Stack */}
+        <div className="button-stack">
+          <button
+            className="control-btn friends-btn"
+            onClick={() => setCurrentScreen('friends')}
+          >
+            friends
+          </button>
+          <button
+            className="control-btn channels-btn"
+            onClick={() => setCurrentScreen('channels')}
+          >
+            channels
+          </button>
+          <button
+            className="control-btn settings-btn"
+            onClick={() => setCurrentScreen('settings')}
+          >
+            settings
+          </button>
+          {currentScreen !== 'main' && (
+            <button
+              className="control-btn back-btn"
+              onClick={() => setCurrentScreen('main')}
+            >
+              back
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Friend Requests Overlay */}
+      <FriendRequests
+        friendRequests={friendRequests}
+        acceptFriendRequest={acceptFriendRequest}
+        rejectFriendRequest={rejectFriendRequest}
+      />
+
+      {/* Group Call Overlay */}
       <GroupCallOverlay
         showGroupCall={showGroupCall}
         groupCallData={groupCallData}

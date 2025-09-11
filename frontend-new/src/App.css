@@ -1,322 +1,155 @@
-/* R1-Walky Device Design Based on Reference Image */
+/* R1-Walky LCD Design - Optimized for Rabbit R1 */
 
-/* Main Container */
+/* Main Container - Fixed R1 Size */
 body {
     width: 240px;
-    height: 320px;
+    height: 282px;
     margin: 0;
     padding: 0;
     background: #000;
+    color: #00ff88;
     font-family: 'Courier New', monospace;
     overflow: hidden;
-}
-
-/* Device Container */
-.r1-device {
-    width: 100%;
-    height: 100%;
-    background: #000;
-    border: 4px solid #ff6b35;
+    border: 3px solid #ff6b35;
     border-radius: 8px;
-    position: relative;
-    display: flex;
-    flex-direction: column;
     box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
 }
 
-/* LCD Screen */
-.lcd-screen {
-    width: calc(100% - 16px);
-    height: 140px;
-    margin: 8px;
-    background: linear-gradient(135deg, #b8c5d6 0%, #9eaabb 100%);
-    border: 2px solid #666;
-    border-radius: 6px;
-    position: relative;
+/* R1 Device Container */
+.r1-device {
+    width: 100%;
+    height: 100%;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    flex-direction: column;
+    background: #000;
+    position: relative;
+}
+
+/* LCD Screen - Fixed Size */
+.lcd-screen {
+    width: 100%;
+    height: 140px;
+    background: #000;
+    border: 2px solid #333;
+    border-radius: 4px;
+    margin: 8px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.lcd-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 255, 136, 0.03) 2px,
+        rgba(0, 255, 136, 0.03) 3px
+    );
+    pointer-events: none;
 }
 
 .lcd-content {
-    width: 90%;
-    height: 90%;
-    background: #dde4ee;
-    border-radius: 4px;
-    padding: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 6px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    color: #000;
+}
+
+.lcd-text {
+    font-size: 9px;
+    color: #00ff88;
+    margin: 1px 0;
+    text-shadow: 0 0 2px #00ff88;
+}
+
+.lcd-title {
     font-size: 10px;
-    line-height: 1.3;
+    font-weight: bold;
+    margin-bottom: 2px;
 }
 
 .connect-message {
-    font-size: 11px;
-    font-weight: bold;
-    margin-bottom: 8px;
+    font-size: 10px;
+    color: #00ff88;
+    margin-bottom: 2px;
 }
 
 .status-line {
     width: 100%;
-    border-bottom: 1px dashed #666;
-    margin: 4px 0;
+    height: 1px;
+    background: #00ff88;
+    margin: 2px 0;
+    box-shadow: 0 0 2px #00ff88;
 }
 
 .status-text {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 4px 0;
+    width: 100%;
+    font-size: 8px;
+    color: #00ff88;
 }
 
 .status-connected {
-    color: #00aa00;
+    color: #00ff88;
     font-weight: bold;
 }
 
 .status-disconnected {
-    color: #ff0000;
-    font-weight: bold;
+    color: #666;
 }
 
-/* Friends List Screen */
-.friends-screen .lcd-content {
-    padding: 4px;
-}
-
-.friends-title {
-    font-size: 12px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    text-align: center;
-}
-
-.friends-list {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.friend-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 6px;
-    border-bottom: 1px dashed #999;
-    font-size: 9px;
-}
-
-.friend-item:last-child {
-    border-bottom: none;
-}
-
-.friend-name {
-    font-weight: bold;
-}
-
-/* Control Section */
+/* Control Section - Fixed Layout */
 .control-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    gap: 8px;
-}
-
-/* Flow Button */
-.flow-section {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: #111;
+    border-top: 1px solid #333;
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
-.flow-button {
-    background: linear-gradient(135deg, #d4d4d4 0%, #a8a8a8 100%);
-    border: 2px solid #666;
-    border-radius: 4px;
-    padding: 6px 12px;
-    color: #000;
-    font-size: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    transition: all 0.1s ease;
-}
-
-.flow-button:hover {
-    background: linear-gradient(135deg, #a8a8a8 0%, #808080 100%);
-    transform: translateY(1px);
-}
-
-.flow-button:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-.flow-arrow {
-    font-size: 12px;
-    color: #333;
-}
-
-.friends-btn {
-    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
-    border: 2px solid #cc3300;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 6px 12px;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    transition: all 0.1s ease;
-}
-
-.friends-btn:hover {
-    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
-    transform: translateY(1px);
-}
-
-.friends-btn:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-/* Speaker Section */
+/* Speaker Section - Left Side */
 .speaker-section {
-    flex: 1;
+    flex: 0 0 60px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    position: relative;
-}
-
-.speaker-grill {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #444 0%, #222 70%);
-    border: 2px solid #666;
-    position: relative;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
 }
 
-.speaker-grill::before {
-    content: '';
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    border: 1px solid #555;
-    border-radius: 50%;
-}
-
-.speaker-grill::after {
-    content: '';
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    border: 1px solid #555;
-    border-radius: 50%;
-}
-
-.speaker-icon {
-    width: 20px;
-    height: 20px;
-    color: #888;
-    z-index: 1;
-}
-
-/* Back Button */
-.back-btn {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    background: #666;
-    border: 1px solid #999;
-    color: #fff;
-    font-size: 10px;
-    padding: 2px 6px;
-    cursor: pointer;
-    border-radius: 2px;
-    font-family: 'Courier New', monospace;
-}
-
-.back-btn:hover {
-    background: #777;
-}
-
-/* PTT Button (hidden in this design) */
-.ptt-section {
-    display: none;
-}
-
-/* Volume Control (hidden in this design) */
-.volume-control {
-    display: none;
-}
-
-/* Screen States */
-.screen-main .friends-screen {
-    display: none;
-}
-
-.screen-friends .main-screen {
-    display: none;
-}
-
-/* Hide old styles */
-.screen, .header, .content, .btn, .status, 
-.walkie-layout, .lcd-display, .speaker-left, 
-.speaker-right, .control-btn {
-    display: none !important;
-}
-
-/* PTT Button Styles */
-.ptt-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.ptt-button {
+.speaker-btn {
     width: 50px;
     height: 50px;
+    background: linear-gradient(135deg, #333 0%, #222 100%);
+    border: 2px solid #666;
     border-radius: 50%;
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    border: 3px solid #8b0000;
-    color: white;
-    font-family: 'Courier New', monospace;
-    font-size: 8px;
-    font-weight: bold;
     cursor: pointer;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
-.ptt-button:hover {
-    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+.speaker-btn:hover {
+    background: linear-gradient(135deg, #444 0%, #333 100%);
     transform: scale(1.05);
 }
 
-.ptt-button.active {
+.speaker-btn.active {
     background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
     border-color: #1e8449;
     box-shadow: 0 0 15px rgba(39, 174, 96, 0.6);
@@ -328,55 +161,165 @@ body {
     100% { transform: scale(1.1); }
 }
 
-/* Volume Control */
-.volume-control {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 3px 6px;
-    border-radius: 8px;
-    border: 1px solid #333;
-}
-
-.volume-control label {
-    font-size: 7px;
-    color: #ccc;
-    font-family: 'Courier New', monospace;
-}
-
-.volume-control input {
+.speaker-icon {
     width: 30px;
+    height: 30px;
+    opacity: 0.8;
+    filter: brightness(0) invert(1);
+}
+
+/* Button Stack - Right Side */
+.button-stack {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: 8px;
+}
+
+.control-btn {
+    width: 100%;
+    height: 25px;
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+    border: 1px solid #cc3300;
+    border-radius: 3px;
+    color: #000;
+    font-size: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.control-btn:hover {
+    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
+    transform: translateY(1px);
+}
+
+.control-btn:active {
+    transform: translateY(2px);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.friends-btn {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+}
+
+.channels-btn {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+}
+
+.settings-btn {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+}
+
+.back-btn {
+    background: linear-gradient(135deg, #666 0%, #555 100%);
+    border-color: #888;
+    color: #fff;
+}
+
+.back-btn:hover {
+    background: linear-gradient(135deg, #777 0%, #666 100%);
+}
+
+/* Friends Screen */
+.friends-title {
+    font-size: 10px;
+    color: #00ff88;
+    margin-bottom: 2px;
+}
+
+.friends-list {
+    width: 100%;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.friend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    margin: 1px 0;
+    border: 1px solid transparent;
+    font-size: 8px;
+    background: rgba(0, 255, 136, 0.05);
+    cursor: pointer;
+}
+
+.friend-item:hover {
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.friend-item.selected {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: #00ff88;
+    box-shadow: 0 0 3px rgba(0, 255, 136, 0.5);
+}
+
+.friend-name {
+    color: #00ff88;
+    font-weight: bold;
+}
+
+/* Channels Screen */
+.channels-title {
+    font-size: 10px;
+    color: #00ff88;
+    margin-bottom: 2px;
+}
+
+/* Settings Screen */
+.settings-title {
+    font-size: 10px;
+    color: #00ff88;
+    margin-bottom: 2px;
+}
+
+.settings-list {
+    width: 100%;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    margin: 1px 0;
+    font-size: 8px;
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.05);
+    border: 1px solid #333;
+    border-radius: 2px;
+}
+
+.volume-slider {
+    width: 40px;
     height: 2px;
     background: #333;
     border-radius: 1px;
     outline: none;
 }
 
-.volume-control input::-webkit-slider-thumb {
+.volume-slider::-webkit-slider-thumb {
     appearance: none;
-    width: 5px;
-    height: 5px;
+    width: 4px;
+    height: 4px;
     background: #00ff88;
     border-radius: 50%;
     cursor: pointer;
 }
 
-.volume-control input::-moz-range-thumb {
-    width: 5px;
-    height: 5px;
+.volume-slider::-moz-range-thumb {
+    width: 4px;
+    height: 4px;
     background: #00ff88;
     border-radius: 50%;
     cursor: pointer;
     border: none;
-}
-
-.volume-control span {
-    font-size: 6px;
-    color: #ccc;
-    font-family: 'Courier New', monospace;
-    min-width: 18px;
-    text-align: center;
 }
 
 /* Hide old styles */
@@ -386,53 +329,54 @@ body {
 
 /* Location Channels Styles */
 .location-channels {
-    margin: 8px 0;
-    padding: 0 12px;
+    margin: 4px 0;
+    padding: 0 6px;
 }
 
 .location-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .location-header h3 {
-    font-size: 14px;
+    font-size: 10px;
+    color: #00ff88;
 }
 
 .location-status {
-    font-size: 10px;
+    font-size: 7px;
 }
 
 .status-enabled {
-    color: #4caf50;
+    color: #00ff88;
 }
 
 .status-disabled {
-    color: #f44336;
+    color: #666;
 }
 
 .channel-sections {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
 }
 
 .channel-section {
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    padding: 8px;
+    border-radius: 2px;
+    padding: 4px;
 }
 
 .channel-section h4 {
-    font-size: 12px;
-    margin-bottom: 6px;
-    color: #81c784;
+    font-size: 8px;
+    margin-bottom: 3px;
+    color: #00ff88;
 }
 
 .no-channels {
-    font-size: 10px;
+    font-size: 7px;
     color: #666;
     font-style: italic;
 }
@@ -440,52 +384,54 @@ body {
 .channel-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
 }
 
 .channel-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px;
+    padding: 3px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 3px;
+    border-radius: 2px;
+    font-size: 7px;
 }
 
 .channel-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 
 .channel-name {
-    font-size: 11px;
+    font-size: 8px;
     font-weight: bold;
+    color: #00ff88;
 }
 
 .channel-distance, .channel-radius {
-    font-size: 9px;
+    font-size: 6px;
     color: #999;
 }
 
 .channel-actions {
     display: flex;
-    gap: 4px;
+    gap: 2px;
 }
 
 .btn-small {
-    padding: 4px 8px;
-    font-size: 10px;
-    background: #4caf50;
+    padding: 2px 4px;
+    font-size: 6px;
+    background: #00ff88;
     border: none;
-    border-radius: 3px;
-    color: white;
+    border-radius: 2px;
+    color: #000;
     cursor: pointer;
 }
 
 .btn-small:hover {
-    background: #45a049;
+    background: #00dd77;
 }
 
 .btn-small:disabled {
@@ -494,39 +440,39 @@ body {
 }
 
 .leave-btn {
-    background: #f44336;
+    background: #ff6b35;
 }
 
 .leave-btn:hover {
-    background: #d32f2f;
+    background: #ff4500;
 }
 
 .joined-indicator {
-    font-size: 10px;
-    color: #4caf50;
+    font-size: 7px;
+    color: #00ff88;
     font-weight: bold;
 }
 
 .create-channel-form {
-    margin-top: 8px;
+    margin-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
 }
 
 .create-channel-form input {
-    padding: 4px;
-    font-size: 11px;
+    padding: 2px;
+    font-size: 7px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #333;
-    border-radius: 3px;
-    color: white;
+    border-radius: 2px;
+    color: #00ff88;
 }
 
 .radius-input {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
 }
 
 .radius-input input {
@@ -534,70 +480,69 @@ body {
 }
 
 .radius-input span {
-    font-size: 10px;
-    min-width: 30px;
+    font-size: 6px;
 }
 
 /* Speaker Indicator Styles */
 .speaker-indicator {
-    margin: 8px 0;
-    padding: 8px 12px;
+    margin: 4px 0;
+    padding: 4px 6px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 .speaker-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .speaker-header h4 {
-    font-size: 12px;
-    color: #81c784;
+    font-size: 8px;
+    color: #00ff88;
 }
 
 .active-speakers {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: 2px;
+    margin-bottom: 4px;
 }
 
 .speaker-item {
     display: flex;
     align-items: center;
-    padding: 4px;
+    padding: 2px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 .speaker-item.active {
-    background: rgba(76, 175, 80, 0.2);
-    border-left: 3px solid #4caf50;
+    background: rgba(0, 255, 136, 0.2);
+    border-left: 2px solid #00ff88;
 }
 
 .speaker-avatar {
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: #4caf50;
+    background: #00ff88;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 6px;
+    margin-right: 3px;
     position: relative;
 }
 
 .speaker-avatar.small {
-    width: 16px;
-    height: 16px;
+    width: 10px;
+    height: 10px;
 }
 
 .speaking-indicator {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
     background: #fff;
     border-radius: 50%;
     animation: pulse 1s infinite;
@@ -608,31 +553,32 @@ body {
 }
 
 .speaker-name {
-    font-size: 11px;
+    font-size: 7px;
     font-weight: bold;
+    color: #00ff88;
 }
 
 .speaker-status, .speaker-time {
-    font-size: 9px;
+    font-size: 6px;
     color: #999;
 }
 
 .speaker-history {
     border-top: 1px solid #333;
-    padding-top: 6px;
+    padding-top: 3px;
 }
 
 .speaker-history h5 {
-    font-size: 10px;
-    margin-bottom: 4px;
+    font-size: 6px;
+    margin-bottom: 2px;
     color: #bbb;
 }
 
 .history-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    max-height: 60px;
+    gap: 1px;
+    max-height: 40px;
     overflow-y: auto;
 }
 
@@ -659,90 +605,91 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 4px 6px;
     background: #000;
     border-bottom: 1px solid #333;
 }
 
 .group-call-header h3 {
-    font-size: 14px;
+    font-size: 10px;
+    color: #00ff88;
 }
 
 .close-btn {
-    background: #f44336;
+    background: #ff6b35;
     border: none;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 3px;
+    color: #000;
+    padding: 2px 4px;
+    border-radius: 2px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 8px;
 }
 
 .close-btn:hover {
-    background: #d32f2f;
+    background: #ff4500;
 }
 
 .call-info {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
 }
 
 .channel-name {
-    font-size: 11px;
-    color: #81c784;
+    font-size: 8px;
+    color: #00ff88;
 }
 
 .connection-status {
-    font-size: 10px;
+    font-size: 7px;
 }
 
 .group-call-content {
     flex: 1;
-    padding: 12px;
+    padding: 6px;
     overflow-y: auto;
 }
 
 .participants-section {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 }
 
 .participants-section h4 {
-    font-size: 12px;
-    margin-bottom: 6px;
-    color: #81c784;
+    font-size: 8px;
+    margin-bottom: 3px;
+    color: #00ff88;
 }
 
 .participants-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    max-height: 80px;
+    gap: 2px;
+    max-height: 50px;
     overflow-y: auto;
 }
 
 .participant-item {
     display: flex;
     align-items: center;
-    padding: 4px;
+    padding: 2px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 .participant-avatar {
-    width: 16px;
-    height: 16px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #666;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 6px;
+    margin-right: 3px;
 }
 
 .participant-initial {
-    font-size: 9px;
+    font-size: 6px;
     font-weight: bold;
 }
 
@@ -751,35 +698,91 @@ body {
 }
 
 .participant-name {
-    font-size: 10px;
+    font-size: 7px;
+    color: #00ff88;
 }
 
 .group-call-controls {
-    margin-top: 12px;
+    margin-top: 6px;
 }
 
 .ptt-section {
     display: flex;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .control-buttons {
     display: flex;
     justify-content: space-between;
-    gap: 6px;
+    gap: 3px;
 }
 
 .control-buttons .btn {
     flex: 1;
-    padding: 6px;
-    font-size: 11px;
+    padding: 3px;
+    font-size: 7px;
 }
 
 .muted {
-    background: #f44336 !important;
+    background: #ff6b35 !important;
 }
 
 .muted:hover {
-    background: #d32f2f !important;
+    background: #ff4500 !important;
+}
+
+/* Friend Requests Styles */
+.friend-requests {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #00ff88;
+    border-radius: 3px;
+    padding: 4px;
+    max-width: 200px;
+    z-index: 100;
+}
+
+.friend-request-item {
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #333;
+}
+
+.friend-request-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.friend-request-text {
+    font-size: 7px;
+    color: #00ff88;
+    margin-bottom: 3px;
+}
+
+.friend-request-buttons {
+    display: flex;
+    gap: 2px;
+}
+
+.friend-request-btn {
+    padding: 2px 4px;
+    font-size: 6px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+}
+
+.accept-btn {
+    background: #00ff88;
+    color: #000;
+}
+
+.reject-btn {
+    background: #ff6b35;
+    color: #000;
 }
