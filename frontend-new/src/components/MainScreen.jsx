@@ -66,27 +66,41 @@ function MainScreen({
   const renderMainScreen = () => (
     <div className="lcd-content">
       {currentCall ? (
-        <>
-          <div className="connect-message">connect with "{currentCall.targetUsername}"</div>
+        <div>
+          <div className="lcd-text lcd-title">R1-WALKY</div>
+          <div className="connect-message">Connect with "{currentCall.targetUsername}"</div>
           <div className="status-line"></div>
           <div className="status-text">
-            <span>status</span>
+            <span>Status:</span>
             <span className={currentCall.status === 'connected' ? 'status-connected' : 'status-disconnected'}>
-              {currentCall.status === 'connected' ? 'connected' : currentCall.status}
+              {currentCall.status === 'connected' ? 'Connected' : currentCall.status}
             </span>
           </div>
-        </>
+        </div>
       ) : (
-        <>
-          <div className="lcd-text lcd-title">R1-WALKY - {currentUser?.username || 'User'}</div>
-          <div className="status-line"></div>
+        <div>
+          <div className="lcd-text lcd-title">
+            R1-WALKY {currentUser?.username ? `- ${currentUser.username}` : ''}
+          </div>
           <div className="status-text">
-            <span>status</span>
+            <span>Status:</span>
             <span className={connectionStatus === 'Online' ? 'status-connected' : 'status-disconnected'}>
-              {connectionStatus.toLowerCase()}
+              {connectionStatus}
             </span>
           </div>
-        </>
+          <div className="status-line"></div>
+          <div className="menu-options">
+            <div className="menu-item" onClick={() => setCurrentScreen('friends')}>
+              FRIENDS
+            </div>
+            <div className="menu-item" onClick={() => setCurrentScreen('channels')}>
+              CHANNELS
+            </div>
+            <div className="menu-item" onClick={() => setCurrentScreen('settings')}>
+              SETTINGS
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
