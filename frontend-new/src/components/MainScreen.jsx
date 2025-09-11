@@ -84,6 +84,7 @@ function MainScreen({
 
   const renderFriendsScreen = () => (
     <div className="lcd-content">
+      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
       <div className="lcd-text lcd-title">
         FRIENDS
       </div>
@@ -95,6 +96,7 @@ function MainScreen({
             <div
               key={friend.id}
               className={`friend-item ${index === selectedFriendIndex ? 'selected' : ''}`}
+              onClick={() => callFriend(friend)}
             >
               <div className="friend-name">{friend.username}</div>
               <div className="friend-status">
@@ -109,6 +111,7 @@ function MainScreen({
 
   const renderChannelsScreen = () => (
     <div className="lcd-content">
+      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
       <div className="lcd-text lcd-title">
         CHANNELS
       </div>
@@ -124,6 +127,7 @@ function MainScreen({
 
   const renderSettingsScreen = () => (
     <div className="lcd-content">
+      <div className="back-btn" onClick={() => setCurrentScreen('main')}>← BACK</div>
       <div className="lcd-text lcd-title">
         SETTINGS
       </div>
