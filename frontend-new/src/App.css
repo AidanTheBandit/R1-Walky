@@ -248,12 +248,38 @@ html, body {
 }
 
 /* Control Buttons - Responsive Orange Buttons */
-/* Control Buttons - Responsive Orange Buttons */
-    .control-btn {
-        width: 80px;
-        height: 35px;
-        font-size: 11px;
-    }/* Friends List - Responsive */
+.control-btn {
+    width: 80px;
+    height: 35px;
+    font-size: 11px;
+    background: linear-gradient(135deg, #333 0%, #222 100%);
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn:hover {
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    color: #fff;
+    border-color: #666;
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.control-btn:active {
+    background: linear-gradient(135deg, #222 0%, #111 100%);
+    transform: translateY(2px);
+    box-shadow: 0 0 1px rgba(0,0,0,0.5);
+}/* Friends List - Responsive */
 .friends-list {
     display: flex;
     flex-direction: column;
@@ -348,19 +374,26 @@ html, body {
 
 /* Back Button - Responsive */
 .back-btn {
-    background: #666;
-    border: 1px solid #888;
-    color: #fff !important;
+    background: linear-gradient(135deg, #333 0%, #222 100%);
+    border: 1px solid #555;
+    color: #ccc !important;
     font-size: clamp(8px, 2vw, 12px);
     padding: min(4px, 0.8vw) min(8px, 1.5vw);
     cursor: pointer;
     font-family: 'Courier New', monospace;
     margin-right: min(8px, 1.5vw);
-    border-radius: min(4px, 0.8vw);
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+    font-weight: bold;
 }
 
 .back-btn:hover {
-    background: #777;
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    color: #fff !important;
+    border-color: #666;
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
 /* No Data Message - Responsive */
@@ -439,131 +472,6 @@ html, body {
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-status {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 20px;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn {
-    background: #aa0000;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn:hover {
-    background: #880000;
-}
-
-/* Calling Overlay */
-.calling-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.calling-content {
-    background: #f0f0f0;
-    border: 3px solid #ff6b35;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    max-width: 300px;
-    width: 90%;
-}
-
-.calling-content h2 {
-    color: #000;
-    font-size: 18px;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-target {
-    color: #ff6b35;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-status {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 20px;
-    font-family: 'Courier New', monospace;
-}
-
-.cancel-call-btn {
-    background: #aa0000;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    min-width: 100px;
-}
-
-.cancel-call-btn:hover {
-    background: #880000;
-}
-
-/* Calling Overlay */
-.calling-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.calling-content {
-    background: #f0f0f0;
-    border: 3px solid #ff6b35;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    max-width: 300px;
-    width: 90%;
-}
-
-.calling-content h2 {
-    color: #000;
-    font-size: 18px;
-    margin-bottom: 10px;
-    font-family: 'Courier New', monospace;
-}
-
-.calling-target {
-    color: #ff6b35;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 20px;
     font-family: 'Courier New', monospace;
 }
 
@@ -761,8 +669,6 @@ body {
 .cancel-call-btn:hover {
     background: #880000;
 }
-
-/* Call Screens */
 .caller-info {
     text-align: center;
     margin-bottom: 20px;
@@ -790,64 +696,69 @@ body {
 .call-accept-btn, .call-reject-btn, .call-cancel-btn {
     padding: 10px 20px;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     font-family: 'Courier New', monospace;
     min-width: 80px;
-    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
-    color: #000;
-    border: 3px solid #cc3300;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    color: #ccc;
+    border: 1px solid #555;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     transition: all 0.15s ease;
 }
 
 .call-accept-btn:hover {
-    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
-    transform: translateY(2px);
+    background: linear-gradient(135deg, #555 0%, #444 100%);
+    color: #fff;
+    border-color: #666;
+    transform: translateY(1px);
 }
 
 .call-reject-btn {
-    background: linear-gradient(135deg, #aa0000 0%, #880000 100%);
-    border-color: #660000;
+    background: linear-gradient(135deg, #662222 0%, #441111 100%);
+    border-color: #662222;
 }
 
 .call-reject-btn:hover {
-    background: linear-gradient(135deg, #880000 0%, #660000 100%);
-    transform: translateY(2px);
+    background: linear-gradient(135deg, #773333 0%, #552222 100%);
+    border-color: #773333;
+    transform: translateY(1px);
 }
 
 .call-cancel-btn {
-    background: linear-gradient(135deg, #666 0%, #444 100%);
-    border-color: #333;
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    border-color: #555;
 }
 
 .call-cancel-btn:hover {
-    background: linear-gradient(135deg, #777 0%, #555 100%);
-    transform: translateY(2px);
+    background: linear-gradient(135deg, #555 0%, #444 100%);
+    border-color: #666;
+    transform: translateY(1px);
 }
 
 /* End Call Button */
 .call-end-btn {
-    background: linear-gradient(135deg, #aa0000 0%, #880000 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
+    background: linear-gradient(135deg, #662222 0%, #441111 100%);
+    color: #ccc;
+    border: 1px solid #662222;
+    border-radius: 6px;
     padding: 8px 16px;
     font-size: 12px;
     font-weight: bold;
     cursor: pointer;
     font-family: 'Courier New', monospace;
     margin-top: 10px;
-    border: 2px solid #660000;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     transition: all 0.15s ease;
 }
 
 .call-end-btn:hover {
-    background: linear-gradient(135deg, #880000 0%, #660000 100%);
-    transform: translateY(2px);
+    background: linear-gradient(135deg, #773333 0%, #552222 100%);
+    color: #fff;
+    border-color: #773333;
+    transform: translateY(1px);
 }
 
 /* Additional Call UI Styles */
