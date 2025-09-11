@@ -10,13 +10,330 @@ body {
     color: #00ff88;
     font-family: 'Courier New', monospace;
     overflow: hidden;
-    border: 3px solid #ff6b35;
-    border-radius: 8px;
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
     box-sizing: border-box;
+}
+
+/* R1 Device Container - Full Screen with Orange Border */
+.r1-device {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    position: relative;
+    box-sizing: border-box;
+    border: 4px solid #ff6b35;
+    border-radius: 12px;
+    padding: 8px;
+}
+
+/* LCD Screen - White background with black text */
+.lcd-screen {
+    width: 100%;
+    height: 45%;
+    background: #f0f0f0;
+    border: 2px solid #333;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.lcd-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* LCD Content - Black text on white background */
+.lcd-content {
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    background: #f0f0f0;
+    color: #000;
+}
+
+.lcd-text {
+    font-size: 14px;
+    color: #000;
+    margin: 3px 0;
+    font-weight: bold;
+}
+
+.lcd-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #000;
+}
+
+.connect-message {
+    font-size: 18px;
+    color: #000;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+.status-line {
+    width: 80%;
+    height: 2px;
+    background: #000;
+    margin: 6px 0;
+}
+
+.status-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    font-size: 16px;
+    color: #000;
+    font-weight: bold;
+}
+
+.status-connected {
+    color: #00aa00;
+    font-weight: bold;
+}
+
+.status-disconnected {
+    color: #666;
+}
+
+/* Bottom Section - Speaker and Buttons */
+.speaker-controls {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #000;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* Speaker Area - Large circular speaker on the left */
+.speaker-area {
+    width: 200px;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    border-radius: 50%;
+    background: radial-gradient(circle, #444 0%, #222 50%, #111 100%);
+    border: 4px solid #333;
+    box-shadow: 
+        inset 0 0 20px rgba(0,0,0,0.5),
+        0 4px 8px rgba(0,0,0,0.3);
+}
+
+.speaker-area::before {
+    content: '';
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 3px solid #222;
+    background: radial-gradient(circle, #333 0%, #111 100%);
+}
+
+.speaker-area::after {
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid #111;
+    background: radial-gradient(circle, #222 0%, #000 100%);
+}
+
+.speaker-area:hover {
+    background: radial-gradient(circle, #555 0%, #333 50%, #222 100%);
+    transform: scale(1.02);
+}
+
+.speaker-svg {
+    width: 60px;
+    height: 60px;
+    opacity: 0.8;
+    filter: brightness(0) invert(1);
+    transition: all 0.2s ease;
+    position: relative;
+    z-index: 3;
+}
+
+.speaker-area:hover .speaker-svg {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Controls Area - Buttons on the right */
+.controls-area {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 32px;
+}
+
+/* Control Buttons - Orange rounded buttons */
+.control-btn {
+    width: 120px;
+    height: 45px;
+    background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+    border: 3px solid #cc3300;
+    border-radius: 8px;
+    color: #000;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow:
+        0 4px 8px rgba(0,0,0,0.3),
+        inset 0 2px 0 rgba(255,255,255,0.2);
+    transition: all 0.15s ease;
+    font-family: 'Courier New', monospace;
+    text-transform: lowercase;
+}
+
+.control-btn:hover {
+    background: linear-gradient(135deg, #ff4500 0%, #cc3300 100%);
+    transform: translateY(2px);
+    box-shadow:
+        0 2px 4px rgba(0,0,0,0.3),
+        inset 0 2px 0 rgba(255,255,255,0.2);
+}
+
+.control-btn:active {
+    transform: translateY(4px);
+    box-shadow: 
+        0 1px 2px rgba(0,0,0,0.3),
+        inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Friends List */
+.friends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 60%;
+    overflow-y: auto;
+    width: 100%;
+}
+
+.friend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    margin: 2px 0;
+    border: 1px solid transparent;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.friend-item:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.friend-item.selected {
+    background: rgba(0, 170, 0, 0.2);
+    border-color: #00aa00;
+    box-shadow: 0 0 5px rgba(0, 170, 0, 0.3);
+}
+
+.friend-name {
+    color: #000;
+    font-weight: bold;
+}
+
+.friend-status {
+    color: #00aa00;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* Settings */
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #000;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Back Button */
+.back-btn {
+    background: #666;
+    border: 1px solid #888;
+    color: #fff;
+    font-size: 10px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    margin-right: 8px;
+    border-radius: 4px;
+}
+
+.back-btn:hover {
+    background: #777;
+}
+
+/* No Data Message */
+.no-data {
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+    padding: 20px;
+}
+
+/* Hide old styles */
+.screen, .header, .content, .btn, .status {
+    display: none !important;
 }
 
 /* R1 Device Container - Full Screen with Flexbox */
@@ -28,11 +345,12 @@ body {
     background: #000;
     position: relative;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
-/* LCD Screen - Takes most of the space */
+/* LCD Screen - Fixed height at top */
 .lcd-screen {
-    flex: 1;
+    height: 200px;
     width: calc(100% - 16px);
     margin: 8px;
     background: #000;
@@ -41,8 +359,7 @@ body {
     position: relative;
     overflow: hidden;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    flex-shrink: 0;
 }
 
 .lcd-screen::before {
@@ -155,17 +472,18 @@ body {
     border-color: #00ff88;
 }
 
-/* Speaker and Controls Section - Fixed height at bottom */
+/* Speaker and Controls Section - Fills remaining space */
 .speaker-controls {
-    height: 120px;
+    flex: 1;
     width: 100%;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     padding: 8px;
     background: #111;
     border-top: 1px solid #333;
     box-sizing: border-box;
-    flex-shrink: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .speaker-area {
@@ -175,6 +493,9 @@ body {
     align-items: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-width: 0;
+    height: 100%;
+    padding: 8px;
 }
 
 .speaker-area:hover {
@@ -183,11 +504,13 @@ body {
 }
 
 .speaker-svg {
-    width: 60px;
-    height: 60px;
+    width: clamp(40px, 20vw, 80px);
+    height: clamp(40px, 20vw, 80px);
     opacity: 0.8;
     filter: brightness(0) invert(1);
     transition: all 0.2s ease;
+    max-width: 100%;
+    max-height: 100%;
 }
 
 .speaker-area:hover .speaker-svg {
@@ -201,17 +524,20 @@ body {
     flex-direction: column;
     gap: 4px;
     align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 100%;
 }
 
 /* Control Buttons */
 .control-btn {
-    width: 80px;
-    height: 35px;
+    width: clamp(60px, 25vw, 100px);
+    height: clamp(30px, 8vh, 45px);
     background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
     border: 2px solid #cc3300;
     border-radius: 4px;
     color: #000;
-    font-size: 12px;
+    font-size: clamp(10px, 3vw, 14px);
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -222,6 +548,8 @@ body {
         inset 0 1px 0 rgba(255,255,255,0.2);
     transition: all 0.1s ease;
     font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .control-btn:hover {
@@ -361,18 +689,49 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 240px) {
+    .lcd-screen {
+        height: 150px;
+        margin: 6px;
+        width: calc(100% - 12px);
+    }
+
     .speaker-controls {
-        height: 100px;
+        padding: 6px;
+        min-height: 80px;
     }
 
     .speaker-svg {
-        width: 50px;
-        height: 50px;
+        width: clamp(35px, 18vw, 60px);
+        height: clamp(35px, 18vw, 60px);
     }
 
     .control-btn {
-        width: 70px;
-        height: 30px;
-        font-size: 11px;
+        width: clamp(50px, 20vw, 80px);
+        height: clamp(25px, 6vh, 35px);
+        font-size: clamp(9px, 2.5vw, 12px);
+    }
+}
+
+@media (max-height: 400px) {
+    .lcd-screen {
+        height: 120px;
+        margin: 4px;
+        width: calc(100% - 8px);
+    }
+
+    .speaker-controls {
+        padding: 4px;
+        min-height: 60px;
+    }
+
+    .speaker-svg {
+        width: clamp(30px, 15vw, 50px);
+        height: clamp(30px, 15vw, 50px);
+    }
+
+    .control-btn {
+        width: clamp(45px, 18vw, 70px);
+        height: clamp(20px, 5vh, 30px);
+        font-size: clamp(8px, 2vw, 11px);
     }
 }
