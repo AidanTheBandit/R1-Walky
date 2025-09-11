@@ -2,6 +2,8 @@ import React from 'react'
 import FriendRequests from './FriendRequests'
 import FriendsList from './FriendsList'
 import PTTButton from './PTTButton'
+import LocationChannels from './LocationChannels'
+import GroupCallOverlay from './GroupCallOverlay'
 
 function MainScreen({
   currentUser,
@@ -19,7 +21,11 @@ function MainScreen({
   updateVolume,
   currentCall,
   endCall,
-  callStatus
+  callStatus,
+  showGroupCall,
+  groupCallData,
+  onGroupCallStarted,
+  onGroupCallClosed
 }) {
   return (
     <div id="main-screen" className="screen active">
@@ -42,6 +48,14 @@ function MainScreen({
           addFriend={addFriend}
         />
 
+        <LocationChannels
+          currentUser={currentUser}
+          onChannelJoined={(channelId) => {
+            console.log('Joined channel:', channelId)
+          }}
+          onGroupCallStarted={onGroupCallStarted}
+        />
+
         <PTTButton
           isPTTPressed={isPTTPressed}
           handlePTTStart={handlePTTStart}
@@ -56,6 +70,14 @@ function MainScreen({
 
         <div className="call-status">{callStatus}</div>
       </div>
+
+      <GroupCallOverlay
+        showGroupCall={showGroupCall}
+        groupCallData={groupCallData}
+        onClose={onGroupCallClosed}
+        volumeLevel={volumeLevel}
+        updateVolume={updateVolume}
+      />
     </div>
   )
 }

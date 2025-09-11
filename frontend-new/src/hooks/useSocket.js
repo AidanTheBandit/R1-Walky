@@ -125,6 +125,27 @@ export const useSocket = (currentUser, setConnectionStatus, setFriends, loadFrie
         setCallStatus(`Connected to user`);
       });
 
+      // Group call events
+      socketRef.current.on('group-call-started', (data) => {
+        addDebugLog(`Group call started in channel ${data.channelId} by ${data.startedByUsername}`);
+        // This will be handled by the LocationChannels component
+      });
+
+      socketRef.current.on('group-call-joined', (data) => {
+        addDebugLog(`Joined group call ${data.callId} in channel ${data.channelId}`);
+        // This will be handled by the GroupCallOverlay component
+      });
+
+      socketRef.current.on('user-joined-channel', (data) => {
+        addDebugLog(`User ${data.username} joined channel ${data.channelId}`);
+        // This will be handled by the LocationChannels component
+      });
+
+      socketRef.current.on('user-left-channel', (data) => {
+        addDebugLog(`User ${data.username} left channel ${data.channelId}`);
+        // This will be handled by the LocationChannels component
+      });
+
       // User status events
       socketRef.current.on('user-online', (data) => {
         addDebugLog(`User ${data.userId} came online`);

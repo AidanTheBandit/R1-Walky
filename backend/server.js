@@ -13,6 +13,7 @@ const SocketService = require('./src/services/socketService');
 const userRoutes = require('./src/routes/users');
 const friendRoutes = require('./src/routes/friends');
 const callRoutes = require('./src/routes/calls');
+const locationRoutes = require('./src/routes/location');
 
 const app = express();
 const server = http.createServer(app);
@@ -163,6 +164,7 @@ app.use('/api', userAuthMiddleware);
 app.use('/api', userRoutes);
 app.use('/api', friendRoutes);
 app.use('/api', callRoutes);
+app.use('/api', locationRoutes);
 
 // Serve static files from React build directory (after API routes)
 app.use(express.static(path.join(__dirname, '../frontend-new/dist')));

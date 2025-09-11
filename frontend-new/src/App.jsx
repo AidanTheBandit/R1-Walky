@@ -34,7 +34,9 @@ function App() {
   const [incomingCallData, setIncomingCallData] = useState(null)
   const [peerConnection, setPeerConnection] = useState(null)
   const [debugLogs, setDebugLogs] = useState([])
-  const [showDebug, setShowDebug] = useState(false) // Only show when debugger friend exists
+  const [showDebug, setShowDebug] = useState(false)
+  const [showGroupCall, setShowGroupCall] = useState(false)
+  const [groupCallData, setGroupCallData] = useState(null)
 
   const ringtoneRef = useRef(null)
   const remoteAudioRef = useRef(null)
@@ -624,6 +626,20 @@ function App() {
     setCallStatus('Call rejected')
   }
 
+  const handleGroupCallStarted = (data) => {
+    addDebugLogLocal(`Group call started: ${JSON.stringify(data)}`)
+    setGroupCallData(data)
+    setShowGroupCall(true)
+    setCallStatus(`Group call active in ${data.channelName || 'channel'}`)
+  }
+
+  const handleGroupCallClosed = () => {
+    addDebugLogLocal('Group call closed')
+    setShowGroupCall(false)
+    setGroupCallData(null)
+    setCallStatus('')
+  }
+
   const handlePTTStart = () => {
     if (!currentCall || !localStreamRef.current) {
       addDebugLogLocal('PTT start ignored: no active call or media stream', 'warn')
@@ -865,6 +881,10 @@ function App() {
         currentCall={currentCall}
         endCall={endCall}
         callStatus={callStatus}
+        showGroupCall={showGroupCall}
+        groupCallData={groupCallData}
+        onGroupCallStarted={handleGroupCallStarted}
+        onGroupCallClosed={handleGroupCallClosed}
       />
 
       <audio ref={ringtoneRef} loop>
